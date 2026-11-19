@@ -1,0 +1,626 @@
+<!doctype html>
+<html lang="id"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Kalkulator Man-day</title>
+<meta name="description" content="Kalkulator penetapan man-day audit berdasarkan IK SIP-IK-SAL-01-01 rev_03_1">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%A7%AE%3C/text%3E%3C/svg%3E">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+<script src="https://unpkg.com/docx@7.8.2/build/index.js"></script>
+<script>window.docx||document.write('<script src="https://cdn.jsdelivr.net/npm/docx@7.8.2/build/index.js"><\/script>')</script>
+<style>
+:root{--bg:#f6f7f9;--cd:#fff;--tx:#1b1f24;--mu:#5b6570;--bd:#d9dde3;--ac:#1f4e8c;--ok:#1a7f4b;--wn:#b45309;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14171c;--cd:#1c2128;--tx:#e6e9ee;--mu:#98a3b0;--bd:#323a45;--ac:#6ea8fe;--ok:#4cc38a;--wn:#f0b45a;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#14171c;--cd:#1c2128;--tx:#e6e9ee;--mu:#98a3b0;--bd:#323a45;--ac:#6ea8fe;--ok:#4cc38a;--wn:#f0b45a;color-scheme:dark}
+body{margin:0;background:var(--bg);color:var(--tx);font:14px/1.45 system-ui,Arial,sans-serif}
+main{max-width:980px;margin:0 auto;padding:16px}
+h1{font-size:20px;margin:0 0 2px}h2{font-size:15px;margin:0 0 10px}
+.s{color:var(--mu);font-size:12px}
+.c{background:var(--cd);border:1px solid var(--bd);border-radius:10px;padding:14px;margin:12px 0}
+.g{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px}
+label{display:block;font-size:12px;color:var(--mu);margin-bottom:3px}
+input,select,textarea,button{font:inherit;color:var(--tx);background:var(--bg);border:1px solid var(--bd);border-radius:6px;padding:7px 8px;width:100%;box-sizing:border-box}
+input[type=checkbox]{width:auto}
+button{width:auto;cursor:pointer;background:var(--ac);color:#fff;border:0;padding:8px 14px}
+button.o{background:transparent;color:var(--ac);border:1px solid var(--ac)}
+.md{font-size:34px;font-weight:700;color:var(--ac)}
+.t{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:12.5px}
+td,th{border-bottom:1px solid var(--bd);padding:6px;text-align:left;vertical-align:top}
+.w{color:var(--wn)}.k{color:var(--ok)}.rt td,.rt th{padding:3px 4px;border:0}.rt th{font-size:11px;color:var(--mu);font-weight:600}.rt input,.rt select{min-width:80px}
+</style></head><body><main><noscript>Halaman ini memerlukan JavaScript.</noscript>
+<h1>Kalkulator Man-day</h1>
+<div class="s">ISPO, VLHH Hilir/Hulu, PHL, ISO 9001/14001/45001/27001, integrasi ISO, multi-tapak, GRK · IK SIP-IK-SAL-01-01 rev_03_1 · engine deterministik v0.3</div>
+<div class="c"><label for="gp">Skema</label><select id="gp"></select><label for="sk" id="sl" style="margin-top:8px">Lingkup</label><select id="sk"></select>
+<div id="fm" class="g" style="margin-top:10px"></div>
+<div style="margin-top:12px"><button id="hit">Hitung</button> <button class="o" id="rs">Reset</button></div></div>
+<div class="c" id="out" hidden></div>
+<div class="c"><h2>Riwayat perhitungan</h2><div class="t"><table id="hs"></table></div>
+<div style="margin-top:10px"><button class="o" id="cl">Hapus riwayat</button> <button class="o" id="rp">Rekap PDF skema ini</button> <button class="o" id="ra">Rekap PDF semua skema</button></div>
+</div>
+<div class="s">Sumber: “IK” = instruksi kerja SIP; “IAF/ISO” = dokumen acuan; “Keputusan SIP” = metode internal yang didokumentasikan. Skoring faktor ISO 27001 dan pemetaan aspek integrasi merupakan kebijakan SIP, bukan ketentuan persentase dari standar.</div>
+</main>
+<script>
+const CE=x=>Math.ceil(x-1e-9),FL=x=>Math.floor(x+1e-9),O=(...a)=>a.map(x=>Array.isArray(x)?x:[x,x]);
+const S=(r,k,t,src)=>({r,k,t,src});
+const N=(k,l,d)=>({k,l,t:"n",d}),SEL=(k,l,o,d)=>({k,l,o:O(...o),d}),B=(k,l)=>({k,l,t:"b"}),T=(k,l,d)=>({k,l,t:"t",d});
+const TR=[N("bandara","Jarak bandara ke lokasi (km)",0),N("laut","Penyeberangan laut (jam, 0 bila tidak ada)",0),SEL("koord","Koordinasi BPHL/Dinas",[["tidak","Tidak diperlukan"],["dalam","Dalam provinsi"],["lintas","Lintas provinsi/pulau atau campuran"]],"tidak")];
+function trans(v,st){const tr=(v.bandara>=100?1:0)+(v.laut>8?1:0),ko={tidak:0,dalam:1,lintas:2}[v.koord];
+st.push(S("R-HUL-05/13","4.7 T6; 4.8 T9",`Transportasi: ${v.bandara>=100?"jarak ≥100 km +1; ":""}${v.laut>8?"laut >8 jam +1; ":""}= ${tr} hari kalender. Koordinasi = ${ko} hari kalender. Dihitung terpisah, tidak masuk MD.`,"Keputusan"));return{transportHari:tr,koordinasiHari:ko}}
+function ispo(v){const st=[],w=[],aw=v.jenis!="penilikan",M={kebun:aw?13:6,pabrik:aw?9:4,integrasi:aw?18:9}[v.lingkup];
+const Pa=v.luas>=1e4?1:v.luas>=5e3?.9:.8,Pb={Tinggi:1,Sedang:.9,Rendah:.8}[v.risiko],Pc=v.kap>=90?1:v.kap>=60?.9:.8;let f,tx;
+if(v.lingkup=="kebun"){f=Pa*Pb;tx=`Pa ${Pa} × Pb ${Pb}`}else if(v.lingkup=="pabrik"){f=Pc;tx=`Pc ${Pc}`}else{f=Math.max(Pa,Pb,Pc);tx=`Pint = maks(Pa ${Pa}; Pb ${Pb}; Pc ${Pc})`}
+st.push(S("R-ISPO-01..07","4.5; T1",`Batas M = ${M}; faktor ${tx} = ${+f.toFixed(3)}`,"IK"));
+const raw=M*f;let md=Math.min(CE(raw),M);st.push(S("R-ISPO-12","4.5",`${M} × ${+f.toFixed(3)} = ${+raw.toFixed(3)} → dibulatkan ke atas (bilangan bulat), dikunci ≤ ${M}`,"Keputusan"));
+let ex={};
+if(v.jenis=="ulang"){const a=md;md=CE(.8*a);st.push(S("R-ISPO-08","4.5",`0,8 × MD awal ${a} = ${+(.8*a).toFixed(2)} → ${md}`,"Keputusan"));}
+else{let t2=md;if(aw){const cap=FL(.2*md);if(v.t1>cap)w.push(`Tahap 1 ${v.t1} melebihi 20% (maks ${cap}).`);t2=md-v.t1;ex.tahap1=v.t1;st.push(S("R-ISPO-09","4.5",`Tahap 1 maks 20% × ${md} = ${cap} (dibulatkan ke bawah); tahap 2 = ${md} − ${v.t1} = ${t2}`,"Keputusan"))}
+const cap2=FL(.2*t2);if(v.tam>cap2)w.push(`Tambahan tahap 2 ${v.tam} melebihi batas 20% (maks ${cap2}).`);if(v.tam%1)w.push("Tambahan harus bilangan bulat.");
+if(v.tam>0){md+=v.tam;st.push(S("R-ISPO-10","4.5",`Tambahan tahap 2 ${v.tam} (batas ${cap2}). Total ${md}`,"IK"));if(!v.just)w.push("Tambahan wajib disertai justifikasi.")}
+if(md>M)w.push(`Total ${md} melampaui batas ${M}; wajib justifikasi tertulis.`)}
+return{md,st,w,ex}}
+function hil(v){const st=[],w=[],ex={},PP=j=>j=="PBPHH"||j=="PBUI";
+let L=v.nlok>3?(v.jarak>=50?[4,3]:[2,3]):v.nlok>=2?(v.jarak>=50?[3,2]:[2,1]):[0,1];
+st.push(S("R-HIL-04","4.6 T3",`${v.nlok} lokasi, jarak terjauh ${v.jarak} km → +${L[0]} MD, min ${L[1]} auditor`,"Keputusan"));
+const one=(j,sk)=>{const b=PP(j)&&sk=="besar"?5:3,a1=PP(j)&&sk=="besar"?2:1,l=v.lelang?(v.rumit&&PP(j)?1:.5):0;
+st.push(S("R-HIL-01..03","4.6 T2,T3",`${j} (${sk}): dasar ${b}, lelang/proses +${l}, lokasi +${L[0]} = ${b+l+L[0]}`,"IK"));return{md:b+l+L[0],a:Math.max(a1,L[1])}};
+let sc=[one(v.jenis,v.skala)];
+if(v.integr)sc.push(one(v.jenis=="PBPHH"?"PBUI":"PBPHH",v.skala2));
+let md=sc.reduce((s,x)=>s+x.md,0),aud=Math.max(...sc.map(x=>x.a));
+if(v.tipe=="kelompok"){const m=v.grup.split(/[;,\s]+/).filter(Boolean).map(Number);if(m.some(isNaN)||m.length<2)w.push("Isi MD tiap anggota (minimal 2 anggota), dipisah koma.");
+else{md=m.reduce((s,x)=>s+x,0);st.push(S("R-HIL-06","4.6 T3",`Σ MD anggota (${m.join("+")}) = ${md}`,"IK"));if(v.sama){md-=1;st.push(S("R-HIL-06","4.6 T3","Efisiensi kelompok −1 MD sekali di akhir","Keputusan"))}}}
+if(v.tanpa){md-=1;st.push(S("R-HIL-07","4.6 T3",`Penilikan/ulang tanpa perubahan lingkup: −1 MD dari total`,"IK"))}
+ex.auditor=aud;ex.durasiHari=CE(md/aud);st.push(S("R-HIL-09/10","4.6",`Auditor = ${aud}; durasi = ${md} ÷ ${aud} → ${ex.durasiHari} hari`,"Keputusan"));
+return{md,st,w,ex}}
+function hul(v){const st=[],w=[],ex={},s=[1,2,3,4,5,6].map(i=>+v["s"+i]);
+s.forEach((x,i)=>{const m=i==3?4:3;if(x<0||x>m||x%1)w.push(`Skor faktor ${i+1} harus bilangan bulat 0–${m}.`)});
+const S_=s.reduce((a,b)=>a+b,0),add=S_<=5?0:S_<=9?1:S_<=14?3:5,k=S_<=5?"Rendah":S_<=9?"Sedang":S_<=14?"Tinggi":"Sangat tinggi";
+st.push(S("R-HUL-02/03","4.7 T4,T5",`Skor ${S_} (${k}) → tambahan ${add} HOK`,"IK"));
+const md=2*v.naud+add;st.push(S("R-HUL-03","4.7 T5",`MD = (2 × ${v.naud} auditor) + ${add} = ${md}`,"Keputusan"));
+Object.assign(ex,trans(v,st));if(v.naud<1)w.push("Jumlah auditor minimal 1.");return{md,st,w,ex}}
+function phl(v){const st=[],w=[],ex={};
+const a=v.luas<1e4?0:v.luas<=75e3?1:v.luas<=15e4?2:v.luas<=225e3?3:v.luas<=3e5?4:5,b=v.nlok<=1?0:v.nlok<=3?1:v.nlok<=6?2:v.nlok<=8?3:4,c=+v.sebar,d=+v.jenis,S_=a+b+c+d,h=S_<=4?5:S_<=9?6:S_<=14?7:8;
+st.push(S("R-PHL-01..04","4.8 T7",`Skor luas ${a} + lokasi ${b} + sebaran ${c} + jenis ${d} = ${S_}`,"IK"));
+const md=h*5;st.push(S("R-PHL-05/06","4.8 T8",`Hari audit ${h} × 5 auditor = ${md}`,"Keputusan"));ex.hariAudit=h;Object.assign(ex,trans(v,st));return{md,st,w,ex}}
+function grk(v){const st=[],w=[],ex={};let sub;
+if(v.sektor=="non"){const n=v.nfas,s1=n<1?0:n<=5?4:n<=10?6:n<=15?12:n<=20?18:n<=25?24:24+6*CE((n-25)/5),q=v.nlini,s2=q<1?0:q<=2?1:q<=4?2:q<=6?4:q<=8?6:q<=10?8:8+2*CE((q-10)/2);
+if(!(n>=1)||n%1)w.push("Jumlah fasilitas harus bilangan bulat ≥1.");if(v.dataavg<0)w.push("Rata-rata data tidak boleh negatif.");
+const dd=x=>x<=40?0:x<=150?1:x<=300?2:3+FL((x-301)/150),s3=(n>=1?n:0)*dd(v.dataavg),p=v.nlokp,j=v.jarakp,s4=p>=5?(j>=100?4:3):p>=3?2:p==2?(j>=100?2:0):0;
+
+st.push(S("R-GRK-01..04","4.15 T19",`S1 fasilitas ${s1}; S2 lini ${s2}; S3 ${n} fasilitas × tambahan(rata-rata data ${v.dataavg}) = ${s3}; S4 lokasi ${s4}`,"IK/Keputusan"));sub=s1+s2+s3+s4;st.push(S("R-GRK-05","4.15",`Subtotal = ${sub}`,"IK"))}
+else{const h=v.luasha,s=h<1e3?2:h<=1e4?10:h<=25e3?14:h<=1e5?18:h<=3e5?24:h<=5e5?30:30+6*CE((h-5e5)/2e5);sub=s;st.push(S("R-GRK-08","4.15 T19",`Kehutanan ${h} Ha → ${s} MD`,"IK/Keputusan"))}
+let md=sub;if(v.loa=="limited"){if(v.keg!="verifikasi")w.push("LoA limited hanya untuk verifikasi.");md=CE(sub*.7);st.push(S("R-GRK-06","4.15",`Limited: ${sub} × 0,7 = ${+(sub*.7).toFixed(2)} → ${md}`,"IK"))}
+if(v.sektor=="non"){ex.perencanaan=CE(.4*md);ex.siteVisit=CE(.6*md);st.push(S("R-GRK-07","4.15 L7",`40% = ${ex.perencanaan}, 60% = ${ex.siteVisit} (masing-masing dibulatkan ke atas)`,"IK"))}
+else{ex.perencanaan=Math.min(CE(.3*md),6);ex.siteVisit=md-ex.perencanaan;st.push(S("R-GRK-08","4.15 L4",`Perencanaan = min(⌈30%⌉ ${CE(.3*md)}; 6) = ${ex.perencanaan}; site visit = ${ex.siteVisit}`,"Keputusan"))}
+return{md,st,w,ex}}
+const SK=(k,l,a,d)=>SEL(k,l,a.map((t,i)=>[String(i),i+" – "+t]),d);
+const SC={
+ispo:{n:"ISPO",fn:ispo,f:[SEL("lingkup","Ruang lingkup",["kebun","pabrik","integrasi"],"kebun"),SEL("jenis","Jenis audit",["awal","penilikan","ulang"],"awal"),N("luas","Luas kebun (Ha)",12000),SEL("risiko","Risiko lokasi",["Tinggi","Sedang","Rendah"],"Sedang"),N("kap","Kapasitas pabrik (ton TBS/jam)",75),N("t1","Tahap 1 (MD, maks 20%)",0),N("tam","Tambahan tahap 2 (MD bulat)",0),T("just","Justifikasi tambahan","")]},
+hilir:{n:"VLHH Hilir",fn:hil,f:[SEL("jenis","Jenis",["PBPHH","PBUI","Eksportir","Importir","TPT-KB"],"PBPHH"),SEL("skala","Skala (PBPHH ≥6.000 m³/th; PBUI >Rp10 M = besar)",["besar","kecil"],"besar"),B("integr","Terintegrasi PBPHH + PBUI"),SEL("skala2","Skala lingkup kedua",["besar","kecil"],"kecil"),B("lelang","Bahan baku kayu lelang"),B("rumit","Proses produksi rumit (alur panjang)"),N("nlok","Jumlah lokasi",1),N("jarak","Jarak terjauh antarlokasi (km)",0),SEL("tipe","Tipe sertifikasi",["individual","kelompok"],"individual"),T("grup","Kelompok: MD tiap anggota (pisah koma)",""),B("sama","Kelompok: ruang lingkup, prinsip, verifier sama"),B("tanpa","Penilikan/ulang tanpa perubahan lingkup")]},
+hulu:{n:"VLHH Hulu",fn:hul,f:[SK("s1","1. Jenis ruang lingkup dan dasar legalitas",["Satu lingkup sederhana","Satu lingkup, beberapa kegiatan/jenis kayu","Dua lingkup atau beberapa dasar legalitas","Tiga lingkup atau lebih, atau kombinasi kegiatan dengan metode verifikasi berbeda"],"1"),SK("s2","2. Skala areal dan intensitas pemanfaatan",["Terbatas dan terkonsentrasi","Sedang / beberapa blok","Luas, atau beberapa blok aktif dengan volume/bukti besar","Sangat luas/tersebar, kegiatan paralel, atau populasi tegakan/titik observasi sangat besar"],"1"),SK("s3","3. Populasi anggota, site, atau KPH (pilih skor tertinggi yang relevan)",["1 unit manajemen/site","2–3 site/UM/KPH, atau 2–5 anggota","4–6 site/UM/KPH, atau 6–15 anggota","Lebih dari 6 site/UM/KPH, atau lebih dari 15 anggota"],"1"),SK("s4","4. Sebaran lokasi",["Satu lokasi terpusat","Satu kabupaten","Antar kabupaten, satu provinsi","Antar provinsi, satu pulau","Antar provinsi, antar pulau"],"1"),SK("s5","5. Volume dokumen dan ketertelusuran",["Sedikit dan tertata","Beberapa jenis, alur sederhana","Banyak transaksi/jenis kayu, perlu uji silang","Sangat besar, tersebar/tidak konsisten, atau ada indikasi ketidaksesuaian"],"1"),SK("s6","6. Tahap audit dan perubahan",["Penilikan stabil tanpa perubahan material","Resertifikasi, atau penilikan dengan perubahan minor","Sertifikasi awal, atau perubahan terbatas","Perubahan material, perluasan lingkup, temuan belum ditutup, keluhan, atau indikasi pelanggaran"],"1"),N("naud","Jumlah auditor (dari planner)",1),...TR]},
+phl:{n:"PHL",fn:phl,f:[N("luas","Luas areal kerja (Ha)",120000),N("nlok","Jumlah lokasi",5),SEL("sebar","Sebaran lokasi",[["0","Satu lokasi"],["1","Satu kabupaten"],["2","Antar kabupaten, satu provinsi"],["3","Antar provinsi, satu pulau"],["4","Antar pulau"]],"3"),SEL("jenis","Jenis sertifikasi",[["4","Awal / resertifikasi dengan perubahan"],["3","Penilikan dengan perubahan"],["2","Resertifikasi tanpa perubahan"],["1","Penilikan tanpa perubahan"]],"4"),...TR]},
+grk:{n:"GRK",fn:grk,f:[SEL("sektor","Sektor",[["non","Non-kehutanan"],["hut","Kehutanan"]],"non"),SEL("keg","Kegiatan",["verifikasi","validasi"],"verifikasi"),SEL("loa","Level of Assurance",["reasonable","limited"],"reasonable"),N("nfas","Jumlah fasilitas SSR",8),N("nlini","Jumlah lini bisnis",3),N("dataavg","Rata-rata data tiap fasilitas (satu nilai untuk seluruh fasilitas)",200),N("nlokp","Jumlah lokasi proyek",6),N("jarakp","Jarak terjauh antar lokasi (km)",120),N("luasha","Luas (Ha, kehutanan)",15000)]}};
+
+const c5=x=>CE(x*2-1e-9)/2,lk=(b,a,x)=>{for(let i=0;i<b.length;i++)if(x<=b[i])return a[i];return a[a.length-1]};
+const EB=[5,10,15,25,45,65,85,125,175,275,425,625,875,1175,1550,2025,2675,3450,4350,5450,6800,8500,10700],
+QV=[1.5,2,2.5,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22],
+EV={Tinggi:[3,3.5,4.5,5.5,7,8,9,11,12,13,15,16,17,19,20,21,23,25,27,28,30,32,34],Sedang:[2.5,3,3.5,4.5,5.5,6,7,8,9,10,11,12,13,15,16,17,18,19,20,21,23,25,27],Rendah:[2.5,3,3,3.5,4,4.5,5,5.5,6,7,8,9,10,11,12,12,13,14,15,16,17,19,20],Terbatas:[2.5,3,3,3,3,3.5,3.5,4,4.5,5,5.5,6,6.5,7,7.5,8,8.5,9,10,11,12,13,14]},
+IB=[10,15,25,45,65,85,125,175,275,425,625,875,1175,1550,2025,2675,3450,4350,5450,6800,8500,10700],
+IV=[5,6,7,8.5,10,11,12,13,14,15,16.5,17.5,18.5,19.5,21,22,23,24,25,26,27,28],
+MX=[[[-30,-10],[-10,-5],[5,20]],[[-10,-5],[0,0],[10,50]],[[5,20],[10,50],[20,100]]],
+MI={100:[0,5,10,15,20],80:[0,5,10,15,15],60:[0,5,10,10,10],40:[0,5,5,5,5],20:[0,0,0,0,0]};
+function iso(v,aw,st,w,ex){let md=aw;
+if(v.jenis=="awal"){const cap=FL(.2*aw*2)/2;if(v.t1>cap)w.push(`Tahap 1 ${v.t1} melebihi 20% (maks ${cap}).`);ex.tahap1=v.t1;ex.tahap2=aw-v.t1;st.push(S("R-GEN-05","4.16",`Tahap 1 maks 20% × ${aw} = ${cap} (turun ke 0,5); tahap 2 = ${aw-v.t1}`,"Keputusan"))}
+else if(v.jenis=="penilikan"){const mn=c5(aw/3);if(v.mdsur<mn)w.push(`MD penilikan ${v.mdsur} kurang dari minimum ⅓ MD awal (${mn}).`);md=v.mdsur;st.push(S("R-QMS-07","4.10–4.12",`Penilikan diinput manual ${v.mdsur}; minimum ⅓ × ${aw} = ${mn}`,"Keputusan"))}
+else st.push(S("R-QMS-07","4.10–4.12",`Sertifikasi ulang = MD awal ${aw}`,"Keputusan"));return md}
+const enp=(v,w)=>{if(v.enp<1||v.enp%1)w.push("ENP harus bilangan bulat ≥1.");if(v.enp>10700&&!(v.manualExt>0))w.push("ENP >10.700: masukkan tambahan MD manual berdasarkan progression di atas tabel dan dokumentasikan justifikasinya.")};
+function qms(v){const st=[],w=[],ex={};enp(v,w);const b=lk(EB,QV,v.enp),a=v.a1+v.a2;st.push(S("R-QMS-01","4.10 T10",`ENP ${v.enp} → MD dasar ${b}`,"IK"));
+[v.a1,v.a2].forEach((x,i)=>{if(Math.abs(x)>30)w.push(`Faktor ${i+1} di luar −30% s.d. +30%.`)});if(Math.min(v.a1,0)+Math.min(v.a2,0)<-30)w.push("Total pengurangan melebihi 30%.");if((v.a1||v.a2)&&!v.just)w.push("Penyesuaian wajib disertai justifikasi.");
+const m0=c5(b*(1+a/100));st.push(S("R-QMS-02..05","4.10 T11",`Faktor 1 ${v.a1}% + faktor 2 ${v.a2}% = ${a}%; ${b} × ${1+a/100} = ${+(b*(1+a/100)).toFixed(3)} → ${m0} (ke atas 0,5)`,"IK/Keputusan"));return{md:iso(v,m0,st,w,ex),st,w,ex}}
+function ems(v){const st=[],w=[],ex={};enp(v,w);let m0;
+if(v.kat=="Kasus khusus"){m0=c5(v.manual);if(!(v.manual>0))w.push("Kasus khusus: isi MD manual.");if(!v.just)w.push("Kasus khusus wajib justifikasi individual.");st.push(S("R-EMS-03","4.11 T13",`Kasus khusus: MD manual ${v.manual} → ${m0}`,"Keputusan"))}
+else{const b=lk(EB,EV[v.kat],v.enp);m0=c5(b+v.tam);if(v.tam<0)w.push("Penambahan tidak boleh negatif.");if(v.tam>0&&!v.just)w.push("Penambahan wajib justifikasi.");st.push(S("R-EMS-01/02","4.11 T12,T13",`ENP ${v.enp}, ${v.kat} → ${b}; penambahan ${v.tam} → ${m0}`,"IK/Keputusan"))}
+return{md:iso(v,m0,st,w,ex),st,w,ex}}
+function isms(v){const st=[],w=[],ex={};enp(v,w);const b=lk(IB,IV,v.enp),sc=[v.b1,v.b2,v.b3,v.i1,v.i2,v.i3];sc.forEach(x=>{if(x<1||x>3||x%1)w.push("Skor harus 1–3.")});
+const SB=v.b1+v.b2+v.b3,SI=v.i1+v.i2+v.i3,cb=SB<=4?0:SB<=6?1:2,ci=SI<=4?0:SI<=6?1:2,r=MX[cb][ci];st.push(S("R-ISM-01..04","4.12 T14–T17",`ENP ${v.enp} → dasar ${b}; skor bisnis ${SB}, IT ${SI}; rentang penyesuaian ${r[0]}% s.d. ${r[1]}%`,"IK"));
+if(v.pct<r[0]||v.pct>r[1])w.push(`Persentase ${v.pct}% di luar rentang ${r[0]}% s.d. ${r[1]}%.`);if(v.pct&&!v.just)w.push("Penyesuaian wajib justifikasi.");
+const m0=c5(b*(1+v.pct/100));st.push(S("R-ISM-05","4.12",`${b} × ${1+v.pct/100} = ${+(b*(1+v.pct/100)).toFixed(3)} → ${m0} (ke atas 0,5)`,"Keputusan"));return{md:iso(v,m0,st,w,ex),st,w,ex}}
+const nums=s=>s.split(/[;,\s]+/).filter(Boolean).map(Number);
+function pm(VI,H){const c=[20,40,60,80,100],r=MI[VI];if(H<=20)return r[0];if(H>=100)return r[4];let i=FL(H/20)-1;const fr=(H-c[i])/20;return Math.abs(fr-.5)<1e-9?(r[i]+r[i+1])/2:fr<.5?r[i]:r[i+1]}
+function integ(v){const st=[],w=[],ex={},m=nums(v.mds),X=nums(v.x),Y=m.length,Z=X.length;if(m.some(isNaN)||X.some(isNaN)||Y<2||Z<1){w.push("Isi MD minimal 2 standar dan jumlah kualifikasi tiap auditor.");return{md:0,st,w,ex}}
+const SM=m.reduce((a,b)=>a+b,0),k=v.k,VI=k>=7?100:k==6?80:k==5?60:k==4?40:20;X.forEach(x=>{if(x<1||x>Y)w.push("Kualifikasi auditor harus 1–"+Y+".")});
+const H=X.reduce((a,x)=>a+x-1,0)/(Z*(Y-1))*100,P=pm(VI,H);st.push(S("R-INT-01..03","4.13 e",`ΣM = ${SM}; ${k} kriteria → tingkat integrasi ${VI}%; H = ${+H.toFixed(2)}%`,"IK"));
+st.push(S("R-INT-04","4.13 G1",`Kolom terdekat (interpolasi di titik tengah) → P = ${P}%`,"Keputusan"));if(v.tam>0&&!v.just)w.push("Penambahan kompleksitas wajib justifikasi.");
+const md=c5(SM*(1-P/100)+v.tam);st.push(S("R-INT-05/07","4.13",`${SM} × (1 − ${P}%) + tambahan ${v.tam} = ${+(SM*(1-P/100)+v.tam).toFixed(3)} → ${md}`,"IK/Keputusan"));ex.P=P+"%";return{md,st,w,ex}}
+function multi(v){const st=[],w=[],ex={};let tot=0;const us=v.units.split(";").map(x=>x.trim()).filter(Boolean);if(!us.length)w.push("Isi unit: tipe,nama,MD,risiko%,pusat%");
+us.forEach(u=>{const a=u.split(",").map(x=>x.trim()),t=a[0].toUpperCase(),md=+a[2],rk=+a[3]||0,ps=+a[4]||0;if(isNaN(md)){w.push("Format salah: "+u);return}
+if(t=="HQ"&&ps)w.push(`${a[1]}: kantor pusat tidak mendapat pengurangan fungsi pusat.`);if(ps&&ps!=10&&ps!=20)w.push(`${a[1]}: pengurangan fungsi pusat hanya 10% atau 20%.`);if(!v.isms&&rk>30)w.push(`${a[1]}: pengurangan risiko >30%.`);
+let R=rk+ps+v.p;if(R>50){w.push(`${a[1]}: pengurangan ${R}% dikunci 50%.`);R=50}const m=md*(1-R/100);tot+=m;st.push(S("R-MS-02..04","4.14",`${a[1]} (${t}): ${md} × (1 − ${R}%) = ${+m.toFixed(3)}`,"IK/Keputusan"))});
+const md=c5(tot);st.push(S("R-MS","4.14",`Jumlah ${+tot.toFixed(3)} → ${md} (ke atas 0,5)`,"Keputusan"));return{md,st,w,ex}}
+const ISOF=[SEL("jenis","Jenis audit",["awal","penilikan","ulang"],"awal"),N("t1","Tahap 1 (MD, maks 20%)",0),N("mdsur","MD penilikan (input manual)",0),T("just","Justifikasi","")];
+Object.assign(SC,{
+qms:{n:"ISO 9001 (QMS)",fn:qms,f:[N("enp","ENP (jumlah personel efektif)",120),N("a1","Faktor 1 kompleksitas (% , −30 s.d. +30)",0),N("a2","Faktor 2 risiko produk/jasa (% , −30 s.d. +30)",0),...ISOF]},
+ems:{n:"ISO 14001 (EMS)",fn:ems,f:[N("enp","ENP",120),SEL("kat","Kategori risiko",["Tinggi","Sedang","Rendah","Terbatas","Kasus khusus"],"Sedang"),N("tam","Penambahan MD (≥0)",0),N("manual","MD manual (Kasus khusus)",0),...ISOF]},
+isms:{n:"ISO 27001 (ISMS)",fn:isms,f:[N("enp","ENP",120),N("b1","Bisnis 1 Jenis usaha/regulasi (1–3)",2),N("b2","Bisnis 2 Proses dan tugas (1–3)",2),N("b3","Bisnis 3 Kematangan SM (1–3)",1),N("i1","IT 1 Infrastruktur (1–3)",2),N("i2","IT 2 Outsourcing/cloud (1–3)",2),N("i3","IT 3 Pengembangan sistem (1–3)",2),N("pct","Penyesuaian (%, sesuai rentang matriks)",0),...ISOF]},
+integ:{n:"Integrasi ISO",fn:integ,f:[T("mds","MD tiap standar (pisah koma)","7,8,12"),N("k","Kriteria integrasi terpenuhi (0–7)",6),T("x","Jumlah standar yang dikuasai tiap auditor","3,2,1"),N("tam","Penambahan kompleksitas (MD)",0),T("just","Justifikasi","")]},
+multi:{n:"Multi-tapak",fn:multi,f:[{k:"units",l:"Unit audit: kantor pusat dan tiap tapak sampel (satu baris per unit)",t:"r",d:"HQ,Pusat,7.7,0,0;SAMPLE,Tapak A,7.7,0,20"},N("p","Pengurangan integrasi P (%)",5),B("isms","Standar ISMS")]}});
+var fv=(s,v)=>SC[s].f.filter(x=>x.t!="h").map(x=>{let t=v[x.k];if(x.t=="b")t=t?"Ya":"Tidak";else if(x.t=="r"||x.t=="f")t=String(t).split(";").map(r=>r.split(",").join(" / ")).join("\n");else if(x.o){const o=x.o.find(q=>q[0]==t);t=o?o[1]:t}return[x.l,String(t===undefined||t===""?"-":t)]});
+const pf=s=>String(s).replace(/≥/g,">=").replace(/≤/g,"<=").replace(/→/g,"->").replace(/[−–]/g,"-").replace(/[⌈⌉⌊⌋]/g,"").replace(/Σ/g,"Jumlah ").replace(/√/g,"akar ").replace(/[“”]/g,'"').replace(/’/g,"'").replace(/⅓/g,"1/3").replace(/[^\x00-\xFF]/g,"");
+const IKV="SIP-IK-SAL-01-01 rev_03_1 · engine v0.2";
+const gd=async(f,...a)=>{try{await f(...a)}catch(e){alert("Gagal membuat file: "+(e&&e.message||e)+"\nPustaka PDF/Word dimuat dari internet; pastikan koneksi aktif lalu muat ulang halaman.")}};
+async function sv(name,data){let d=null;try{if(window.claude&&window.claude.use)d=await window.claude.use("downloads")}catch(e){}
+if(d){try{await d.save({filename:name,data})}catch(e){if(e&&e.code!="declined")alert("Gagal menyimpan: "+(e.message||e.code))}return}
+const u=URL.createObjectURL(data),a=document.createElement("a");a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),5000)}
+const nm=(s,t)=>(SC[s].n.replace(/[^\w]+/g,"_")+"_"+t.replace(/[^\d]/g,"").slice(0,12));
+function pdfDoc(){return new window.jspdf.jsPDF({unit:"pt",format:"a4"})}
+function hd(d,t,sub){d.setFontSize(15);d.text(pf(t),40,45);d.setFontSize(9);d.setTextColor(110);d.text(pf(sub),40,60);d.setTextColor(0)}
+async function calcPdf(L){const d=pdfDoc();hd(d,"Hasil Perhitungan Man-day - "+SC[L.s].n,L.t+" · "+IKV);
+d.autoTable({startY:75,head:[["Input","Nilai"]],body:fv(L.s,L.v).map(r=>r.map(pf)),styles:{fontSize:8},headStyles:{fillColor:[31,78,140]}});
+let y=d.lastAutoTable.finalY+18;d.setFontSize(13);d.text("Hasil: "+L.r.md+" MD",40,y);d.setFontSize(9);const ex=Object.entries(L.r.ex||{}).map(([k,x])=>k+": "+x).join("  |  ");if(ex)d.text(pf(ex),40,y+14,{maxWidth:510});
+d.autoTable({startY:y+26,head:[["Aturan","Klausul IK","Perhitungan","Sumber"]],body:L.r.st.map(x=>[x.r,x.k,x.t,x.src].map(pf)),styles:{fontSize:8},columnStyles:{2:{cellWidth:260}},headStyles:{fillColor:[31,78,140]}});
+y=d.lastAutoTable.finalY+14;d.setFontSize(9);d.text(L.r.w.length?pf("Peringatan: "+L.r.w.join(" ")):"Validasi lolos.",40,y,{maxWidth:510});
+await sv(nm(L.s,L.t)+".pdf",d.output("blob"))}
+async function calcDoc(L){const D=docx,P=(t,o)=>new D.Paragraph({children:[new D.TextRun({text:String(t),...(o||{})})]}),
+tb=rs=>new D.Table({width:{size:100,type:D.WidthType.PERCENTAGE},rows:rs.map((r,i)=>new D.TableRow({children:r.map(c=>new D.TableCell({children:[P(c,{bold:i==0,size:18})]}))}))});
+const doc=new D.Document({sections:[{children:[P("Hasil Perhitungan Man-day - "+SC[L.s].n,{bold:true,size:32}),P(L.t+" · "+IKV,{size:18}),P(" "),tb([["Input","Nilai"],...fv(L.s,L.v)]),P(" "),P("Hasil: "+L.r.md+" MD",{bold:true,size:28}),P(Object.entries(L.r.ex||{}).map(([k,x])=>k+": "+x).join(" | ")),P(" "),tb([["Aturan","Klausul IK","Perhitungan","Sumber"],...L.r.st.map(x=>[x.r,x.k,x.t,x.src])]),P(" "),P(L.r.w.length?"Peringatan: "+L.r.w.join(" "):"Validasi lolos.")]}]});
+await sv(nm(L.s,L.t)+".docx",await D.Packer.toBlob(doc))}
+function recapSec(d,s,first){const hs=H.filter(h=>h.s==s).reverse();if(!first)d.addPage();hd(d,"Rekap Perhitungan - "+SC[s].n,new Date().toLocaleString("id-ID")+" · "+IKV);
+if(!hs.length){d.setFontSize(10);d.text("Belum ada perhitungan.",40,85);return}const m=hs.map(h=>h.md);
+d.setFontSize(9);d.text(`Jumlah perhitungan: ${hs.length} · MD minimum ${Math.min(...m)} · maksimum ${Math.max(...m)} · rata-rata ${+(m.reduce((a,b)=>a+b,0)/m.length).toFixed(2)}`,40,78);
+d.autoTable({startY:88,head:[["No","Waktu","Input","MD","Hasil lain"]],body:hs.map((h,i)=>[i+1,h.w,fv(s,h.v).filter(r=>r[1]!="-"&&r[1]!="Tidak").map(r=>r[0].split(" (")[0]+": "+r[1]).join("; "),h.md,Object.entries(h.ex||{}).map(([k,x])=>k+": "+x).join("; ")].map(pf)),styles:{fontSize:7.5},columnStyles:{2:{cellWidth:230}},headStyles:{fillColor:[31,78,140]}})}
+const RU=a=>`<tr><td><select class="u0"><option value="HQ"${a[0]=="HQ"?" selected":""}>Kantor pusat</option><option value="SAMPLE"${a[0]!="HQ"?" selected":""}>Tapak sampel</option></select></td><td><input class="u1" value="${a[1]||""}"></td><td><input class="u2" type="number" step="any" min="0" value="${a[2]||0}"></td><td><input class="u3" type="number" step="any" min="0" max="50" value="${a[3]||0}"></td><td><select class="u4">${[0,10,20].map(p=>`<option${p==a[4]?" selected":""}>${p}</option>`).join("")}</select></td><td><button type="button" class="o" data-del="1">✕</button></td></tr>`;
+const setRows=(t,s)=>{t.tBodies[0].innerHTML=String(s).split(";").filter(Boolean).map(r=>RU(r.split(","))).join("")};
+const rowsVal=t=>[...t.tBodies[0].rows].map(r=>["u0","u1","u2","u3","u4"].map(c=>r.querySelector("."+c).value.replace(/[,;]/g," ")).join(",")).join(";");
+const rowsHtml=id=>`<div class="t"><table class="rt" id="${id}"><thead><tr><th>Tipe unit</th><th>Nama unit</th><th>MD sebelum pengurangan</th><th>Pengurangan risiko (%)</th><th>Pengurangan fungsi pusat (%)</th><th></th></tr></thead><tbody></tbody></table></div><button type="button" class="o" data-add="1" style="margin-top:6px">+ Tambah unit</button>`;
+const FU=a=>`<tr><td><input class="f1" type="number" step="any" min="0" value="${a[1]||0}"></td><td><button type="button" class="o" data-del="1">✕</button></td></tr>`;
+const setFas=(t,s)=>{t.tBodies[0].innerHTML=String(s).split(";").filter(Boolean).map(r=>FU(r.split(","))).join("")};
+const fasVal=t=>[...t.tBodies[0].rows].map((r,i)=>"Fasilitas "+(i+1)+","+r.querySelector(".f1").value).join(";");
+const fasHtml=id=>`<div class="t"><table class="rt" id="${id}" data-k="f"><thead><tr><th>Rata-rata data tiap fasilitas</th><th></th></tr></thead><tbody></tbody></table></div><button type="button" class="o" data-add="1" style="margin-top:6px">+ Tambah fasilitas</button> <span class="s"></span>`;
+const $=i=>document.getElementById(i);let H=[],LAST=null;
+const sk=$("sk");for(const k in SC)sk.add(new Option(SC[k].n,k));
+function form(){const f=$("fm");f.innerHTML="";SC[sk.value].f.forEach(x=>{const d=document.createElement("div");let h=`<label for="f_${x.k}">${x.l}</label>`;
+if(x.o)h+=`<select id="f_${x.k}">${x.o.map(o=>`<option value="${o[0]}"${o[0]==x.d?" selected":""}>${o[1]}</option>`).join("")}</select>`;
+else if(x.t=="r")h+=rowsHtml("f_"+x.k);else if(x.t=="f")h+=fasHtml("f_"+x.k);else if(x.t=="b")h+=`<input type="checkbox" id="f_${x.k}">`;else if(x.t=="t")h+=`<input id="f_${x.k}" value="${x.d||""}">`;else h+=`<input type="number" step="any" min="0" id="f_${x.k}" value="${x.d}">`;d.innerHTML=h;if(x.t=="r"){d.style.gridColumn="1/-1";const t=d.querySelector("table");setRows(t,x.d);d.onclick=e=>{if(e.target.dataset.add)t.tBodies[0].insertAdjacentHTML("beforeend",RU(["SAMPLE","",0,0,0]));if(e.target.dataset.del)e.target.closest("tr").remove()}}if(x.t=="f"){d.style.gridColumn="1/-1";const t=d.querySelector("table"),c=()=>{d.querySelector("span").textContent=t.tBodies[0].rows.length+" fasilitas"};setFas(t,x.d);c();d.onclick=e=>{if(e.target.dataset.add)t.tBodies[0].insertAdjacentHTML("beforeend",FU(["Fasilitas "+(t.tBodies[0].rows.length+1),0]));if(e.target.dataset.del)e.target.closest("tr").remove();c()}}f.append(d)})}
+function read(){const v={};SC[sk.value].f.forEach(x=>{const e=$("f_"+x.k);v[x.k]=x.t=="b"?e.checked:x.t=="n"?parseFloat(e.value)||0:x.t=="r"?rowsVal(e):x.t=="f"?fasVal(e):e.value});return v}
+function run(s,v){return SC[s].fn(v)}
+function show(s,v,r){const o=$("out");o.hidden=false;const ex=Object.entries(r.ex||{}).map(([k,x])=>`<span class="s">${k}: <b>${x}</b></span>`).join(" · ");
+o.innerHTML=`<div class="s">${SC[s].n}</div><div class="md">${r.md} <span style="font-size:16px">MD</span></div><div>${ex}</div>${r.w.length?`<ul class="w">${r.w.map(x=>`<li>${x}</li>`).join("")}</ul>`:`<div class="k">Validasi lolos</div>`}
+<h2 style="margin-top:12px">Formula breakdown dan dasar ketentuan</h2><div class="t"><table><tr><th>Aturan</th><th>Klausul IK</th><th>Perhitungan</th><th>Sumber</th></tr>${r.st.map(x=>`<tr><td>${x.r}</td><td>${x.k}</td><td>${x.t}</td><td>${x.src}</td></tr>`).join("")}</table></div><div style="margin-top:10px"><button id="bp">Unduh PDF</button> <button class="o" id="bw">Unduh Word</button></div>`;LAST={s,v,r,t:new Date().toLocaleString("id-ID")};$("bp").onclick=()=>gd(calcPdf,LAST);$("bw").onclick=()=>gd(calcDoc,LAST)}
+function hist(){const t=$("hs");t.innerHTML="<tr><th>Waktu</th><th>Skema</th><th>MD</th><th></th></tr>"+H.map((h,i)=>`<tr><td>${h.w}</td><td>${SC[h.s].n}</td><td>${h.md}</td><td><button class="o" data-i="${i}">Hitung ulang</button></td></tr>`).join("");
+}
+function save(){try{localStorage.setItem("mdH",JSON.stringify(H))}catch(e){}}
+$("hit").onclick=()=>{const s=sk.value,v=read(),r=run(s,v);show(s,v,r);H.unshift({w:new Date().toLocaleString("id-ID"),s,v,md:r.md,ex:r.ex});H=H.slice(0,50);save();hist()};
+$("hs").onclick=e=>{const i=e.target.dataset.i;if(i==null)return;const h=H[i];sk.value=h.s;form();for(const k in h.v){const el=$("f_"+k);if(!el)continue;if(el.type=="checkbox")el.checked=h.v[k];else if(el.tagName=="TABLE")(el.dataset.k=="f"?setFas:setRows)(el,h.v[k]);else el.value=h.v[k]}
+const r=run(h.s,h.v);show(h.s,h.v,r);$("out").insertAdjacentHTML("afterbegin",`<div class="${r.md==h.md?"k":"w"}">Reproduksi: ${r.md==h.md?"hasil sama":"hasil berbeda"} (${h.md} → ${r.md})</div>`)};
+$("rp").onclick=()=>gd(async()=>{const d=pdfDoc();recapSec(d,sk.value,1);await sv("Rekap_"+SC[sk.value].n.replace(/[^\w]+/g,"_")+".pdf",d.output("blob"))});$("ra").onclick=()=>gd(async()=>{const d=pdfDoc();Object.keys(SC).forEach((s,i)=>recapSec(d,s,!i));await sv("Rekap_Semua_Skema.pdf",d.output("blob"))});$("rs").onclick=form;sk.onchange=form;
+$("cl").onclick=()=>{H=[];save();hist()};
+try{H=JSON.parse(localStorage.getItem("mdH")||"[]")}catch(e){H=[]}
+
+
+const GP={sms:["Sertifikasi Sistem Manajemen",["qms","ems","ohs","isms","ims"]],svlk:["SVLK",["phl","hulu","hilir"]],ispo:["ISPO",["ispo"]],grk:["GRK",["grk"]]};
+const STDS=[["qms","ISO 9001"],["ems","ISO 14001"],["ohs","ISO 45001"],["isms","ISO 27001"]];
+let SELS={qms:1,ems:1};
+const NG=(k,l,d)=>({...N(k,l,d),neg:1}),HH=l=>({t:"h",l,k:"_h"+l});
+const MSCK=B("ms","Audit Multi-site");
+const MSR=[N("m_nloc","Jumlah lokasi keseluruhan",1),N("m_nhq","Jumlah kantor pusat/central function",1),N("m_nop","Jumlah lokasi operasional",0),N("m_ndr","Jumlah Disaster Recovery Site",0),B("m_c1","Syarat: satu sistem manajemen"),B("m_c2","Syarat: central function bagian dari organisasi"),B("m_c3","Syarat: central function berwenang atas sistem manajemen"),B("m_c4","Syarat: management review terpusat"),B("m_c5","Syarat: seluruh lokasi dalam program audit internal"),B("m_c6","Syarat: proses/aktivitas lokasi memenuhi kriteria kesamaan"),T("m_sites","Daftar lokasi: nama,ENP,karakteristik,risiko(T/S/R),audit internal(Y/T),MR(Y/T),pusat(Y/T); pisah titik koma","")].map(x=>({...x,ms:1}));
+const RAW={qms,ems,isms};
+function msEng(v,std,r){if(!v.ms)return r;const st=r.st,w=r.w,n=v.m_nloc,L=String(v.m_sites||"").split(";").filter(Boolean).map(x=>x.split(",").map(y=>y.trim())),hi=L.filter(x=>(x[3]||"").toUpperCase()=="T").map(x=>x[0]);
+if(n<2)w.push("Multi-site dicentang tetapi jumlah lokasi <2.");if(L.length&&L.length!=n)w.push(`Daftar lokasi (${L.length}) berbeda dari jumlah lokasi (${n}).`);
+if(L.some(x=>(x[4]||"").toUpperCase()=="T"||(x[5]||"").toUpperCase()=="T"))w.push("Ada lokasi di luar audit internal/management review.");
+if(std=="isms"){const tot=L.reduce((a,x)=>a+(+x[1]||0),0);st.push(S("R-MS-ISMS","27006-1:2024 9.1.5; C.6",`ENP seluruh lingkup dihitung tanpa memandang lokasi (ENP input ${v.enp}; Σ ENP lokasi ${tot||"-"}). Rumus sampling IAF MD 1 TIDAK dipakai. DR Site ${v.m_ndr}. Lokasi risiko tinggi wajib perhatian khusus: ${hi.join(", ")||"-"}. Alokasi MD per lokasi = keputusan SIP.`,"ISO/IEC 27006-1:2024"));if(tot&&tot!=v.enp)w.push(`ENP lokasi (${tot}) berbeda dari ENP perhitungan (${v.enp}).`)}
+else{const ok=[1,2,3,4,5,6].every(i=>v["m_c"+i]);if(!ok){st.push(S("R-MS-01","IAF MD 1:2023",`Persyaratan kelayakan sampling tidak seluruhnya terpenuhi → tidak ada pengurangan sampling; seluruh ${n} lokasi diaudit.`,"IAF MD 1"));w.push("Syarat sampling multi-site tidak terpenuhi.");r.ex["sampel_"+std]=n}
+else{const x=Math.max(1,v.m_nop||n-(v.m_nhq||0)),y=v.jenis=="awal"||v.jenis=="ulang"?CE(Math.sqrt(x)):CE(.6*Math.sqrt(x));r.ex["sampel_"+std]=y+" dari "+x+" lokasi operasional + kantor pusat"+(hi.length?" + lokasi berisiko tinggi wajib: "+hi.join(", "):"");st.push(S("R-MS-02","IAF MD 1:2023 (verifikasi rumus ke dokumen resmi)",`Sampel awal/ulang = ⌈√${x}⌉; penilikan = ⌈0,6√${x}⌉ → ${y} lokasi. Pengurangan MD akibat sampling = 0 di kalkulator ini; alokasi MD per lokasi memerlukan keputusan SIP.`,"IAF MD 1 / Keputusan"))}}
+return r}
+const FA=[["f1","1 Kompleksitas ISMS & kekritisan informasi"],["f2","2 Jenis kegiatan bisnis"],["f3","3 Kinerja ISMS terbukti sebelumnya"],["f4","4 Keragaman teknologi & infrastruktur IT"],["f5","5 Outsourcing & pihak ketiga"],["f6","6 Pengembangan sistem informasi"],["f7","7 Jumlah lokasi & DR Site"],["f8","8 Jumlah/kompleksitas kontrol setelah Tahap 1"],["f9","9 Perubahan ISMS (penilikan/ulang)"]];
+function ohs(v){const st=[],w=[],ex={};enp(v,w);if(!(v.base>0))w.push("Isi MD dasar dari Tabel OH&SMS 1 IAF MD 5:2023 (nilai tabel tidak dibundel; keputusan SIP).");
+let m=v.base+v.adj,fl=v.base*.7;st.push(S("R-OHS-01","IAF MD 5:2023 Tabel OH&SMS 1",`ENP ${v.enp}, kategori ${v.kat} → MD dasar ${v.base} (input manual dari tabel resmi)`,"IAF MD 5 / Keputusan"));
+if(v.adj&&!v.just)w.push("Penyesuaian wajib justifikasi.");if(m<fl){w.push(`Pengurangan melebihi 30% (min ${+fl.toFixed(2)}); dikunci.`);m=fl}
+st.push(S("R-OHS-02","IAF MD 5:2023",`Penyesuaian ${v.adj} MD → ${+m.toFixed(3)}, batas pengurangan ≤30% → dibulatkan ke atas 0,5 = ${c5(m)}`,"IAF MD 5 / Keputusan"));return{md:iso(v,c5(m),st,w,ex),st,w,ex}}
+function isms2(v){const st=[],w=[],ex={};enp(v,w);const b=lk(IB,IV,v.enp);let sum=0;
+st.push(S("R-ISM-01","27006-1:2024 C.3.4",`ENP ${v.enp} → MD dasar ${b} (tabel dasar lama; verifikasi terhadap tabel Annex C)`,"IK / ISO/IEC 27006-1:2024"));
+FA.forEach(([k,l])=>{const c=v[k+"c"],a=+v[k+"a"]||0;sum+=a;if(c=="Reduced"&&a>0||c=="Increased"&&a<0||c=="Normal"&&a!=0)w.push(`Faktor ${l}: nilai ${a} MD tidak sesuai klasifikasi ${c}.`);if(k=="f9"&&v.jenis=="awal"&&a)w.push("Faktor 9 hanya untuk penilikan/sertifikasi ulang.");st.push(S("R-ISM-F","C.3.5",`${l}: ${c}, ${a>=0?"+":""}${a} MD (bobot kebijakan internal SIP; ISO 27006-1 tidak menetapkan persentase)`,"Keputusan"))});
+ex["MD dasar"]=b;ex["Total penyesuaian MD"]=sum;if(sum&&!v.just)w.push("Penyesuaian wajib justifikasi.");let m=b+sum;const fl=b*.7;
+if(m<fl){w.push(`Pengurangan >30% dari dasar (min ${+fl.toFixed(2)}); dikunci sesuai C.3.6.`);m=fl}
+st.push(S("R-ISM-06","C.3.6",`${b} ${sum>=0?"+":""}${sum} = ${+(b+sum).toFixed(3)}; batas bawah 70% × ${b} = ${+fl.toFixed(2)} → ${+m.toFixed(3)} → ${c5(m)}`,"ISO/IEC 27006-1:2024 / Keputusan"));
+if(100-v.remote<v.minon)w.push(`Porsi on-site ${100-v.remote}% di bawah minimum ${v.minon}% (C.3.7; nilai minimum = parameter SIP, verifikasi ke dokumen).`);
+st.push(S("R-ISM-07","C.3.7",`On-site ${+(c5(m)*(100-v.remote)/100).toFixed(2)} MD, remote ${+(c5(m)*v.remote/100).toFixed(2)} MD`,"ISO/IEC 27006-1:2024 / Keputusan"));return{md:iso(v,c5(m),st,w,ex),st,w,ex}}
+const MXI={0:[0,0,0,0,0,0],20:[0,0,0,0,0,0],40:[0,5,5,5,5,5],60:[0,5,10,10,10,10],80:[0,5,10,15,15,15],100:[0,5,10,15,20,20]};
+const ASP=["Integrasi dokumentasi sistem manajemen","Integrasi management review","Integrasi audit internal","Integrasi kebijakan dan sasaran","Integrasi proses sistem manajemen","Integrasi tindakan perbaikan & peningkatan berkelanjutan","Integrasi dukungan manajemen & tanggung jawab"];
+function imsF(){const ch=STDS.filter(([k])=>SELS[k]);let f=[HH("Pilih standar yang diintegrasikan (minimal 2)"),...STDS.map(([k,n])=>B("std_"+k,n))];
+ch.forEach(([k,n])=>{f.push(HH("Parameter "+n));SC[k].f.filter(x=>!x.ms&&x.k!="ms").forEach(x=>f.push({...x,k:k+"_"+x.k,l:"["+n+"] "+x.l}))});
+const Y=ch.length,d=Array.from({length:Y},(_,i)=>Array.from({length:Y},(_,j)=>j<Y-i?1:0).join(",")).join(";");
+f.push(HH("Faktor Efisiensi Integrasi Sistem Manajemen (IAF MD 11:2023)"),SEL("lvl","Tingkat integrasi (penilaian CB)",[["0","0%"],["20","20%"],["40","40%"],["60","60%"],["80","80%"],["100","100%"]],"0"));
+ASP.forEach((a,i)=>{f.push(B("ai"+i,a),T("bk"+i,"Keterangan pembuktian: "+a,""))});
+f.push(T("mat","Kompetensi auditor: satu auditor per baris (pisah ;), 1/0 per standar sesuai urutan terpilih",d),N("tam","Penambahan kompleksitas audit (MD)",0));if(SELS.isms)f.push(B("ident","ISMS tetap dapat diidentifikasi dalam audit & laporan (27006-1 9.1.6)"));f.push(T("just","Justifikasi pengurangan/penambahan",""),MSCK,...MSR);return f}
+function ims(v){const st=[],w=[],ex={},ch=STDS.filter(([k])=>v["std_"+k]);if(ch.length<2){w.push("Pilih minimal dua standar.");return{md:0,st,w,ex}}
+let Tt=0;ch.forEach(([k,n])=>{const sv={...v};for(const key in v)if(key.startsWith(k+"_"))sv[key.slice(k.length+1)]=v[key];let r=RAW[k]?RAW[k](sv):ohs(sv);if(v.ms)r=msEng(sv,k,r);Tt+=r.md;ex[n]=r.md;r.st.forEach(x=>st.push({...x,r:n+" · "+x.r}));r.w.forEach(x=>w.push("["+n+"] "+x));for(const q in r.ex)if(q.startsWith("sampel"))ex[q]=r.ex[q]});
+const Y=ch.length,rows=String(v.mat).split(";").filter(Boolean).map(x=>x.split(",").map(Number)),Z=rows.length;let H=0;
+if(!Z||rows.some(r=>r.length!=Y||r.some(isNaN)))w.push("Matriks auditor harus berisi "+Y+" kolom 1/0 per baris.");else{const X=rows.map(r=>r.reduce((a,b)=>a+b,0));X.forEach(x=>{if(x<1)w.push("Tiap auditor minimal menguasai 1 standar.")});H=100*X.reduce((a,x)=>a+x-1,0)/(Z*(Y-1))}
+const L=+v.lvl,na=ASP.filter((_,i)=>v["ai"+i]).length,col=Math.min(5,Math.max(0,Math.ceil(H/20-.5-1e-9)));let P=MXI[L][col];
+st.push(S("R-IMS-01","IAF MD 11:2023 §…",`T = ${Tt}`,"IAF MD 11"));st.push(S("R-IMS-02","IAF MD 11:2023 Annex 1",`H = 100·Σ(Xi−1)/(Z(Y−1)) = ${+H.toFixed(2)}% (Y=${Y}, Z=${Z}); tingkat integrasi ${L}% (penilaian CB, ${na}/7 aspek dicentang)`,"IAF MD 11"));
+st.push(S("R-IMS-03","IAF MD 11 Annex 1 / kebijakan SIP",`H dipetakan ke kolom matriks terdekat (${col*20}%), titik tengah dibulatkan ke bawah (konservatif) → P = ${P}%. Pemetaan ini kebijakan SIP, bukan ketentuan IAF.`,"Keputusan"));
+if(P>0&&na==0){w.push("Tidak ada aspek integrasi dicentang: tidak ada dasar pengurangan, P = 0.");P=0}if(P>0&&!v.just)w.push("Pengurangan wajib dicatat justifikasinya.");if(P>20)P=20;
+if(v.std_isms&&P>0&&!v.ident){w.push("ISMS belum dikonfirmasi dapat diidentifikasi (9.1.6): pengurangan tidak diterapkan.");P=0}
+if(v.ms)w.push("Pengurangan sampling multi-site tidak dihitung (0); tidak ada pengurangan ganda dengan MD 11.");
+const red=Tt*P/100,md=c5(Tt-red+v.tam);st.push(S("R-IMS-04","IAF MD 11:2023",`MD akhir = T − T×P + tambahan = ${Tt} − ${+red.toFixed(3)} + ${v.tam} = ${+(Tt-red+v.tam).toFixed(3)} → ${md} (maks pengurangan 20%; P tidak dihitung dua kali)`,"IAF MD 11 / Keputusan"));
+ex["Total sebelum integrasi"]=Tt;ex["Tingkat integrasi"]=L+"%";ex["Kemampuan audit kombinasi H"]=+H.toFixed(2)+"%";ex["Pengurangan IAF MD 11 P"]=P+"%";ex["Total pengurangan (MD)"]=+red.toFixed(3);return{md,st,w,ex}}
+const ISOF2=ISOF;
+SC.qms.n="ISO 9001";SC.ems.n="ISO 14001";delete SC.integ;delete SC.multi;
+SC.ohs={n:"ISO 45001",fn:ohs,f:[N("enp","ENP",120),SEL("kat","Kategori kompleksitas risiko K3",["Tinggi","Sedang","Rendah"],"Sedang"),N("base","MD dasar Tabel OH&SMS 1 (IAF MD 5:2023, isi manual)",0),NG("adj","Penyesuaian waktu audit (MD, + / −)",0),...ISOF]};
+SC.isms={n:"ISO 27001",fn:isms2,f:[N("enp","ENP",120),...FA.flatMap(([k,l])=>[SEL(k+"c","Faktor "+l+" - klasifikasi",["Reduced","Normal","Increased"],"Normal"),NG(k+"a","Faktor "+l+" - penyesuaian (MD, + / −)",0)]),N("remote","Porsi audit remote (%)",0),N("minon","Minimum porsi on-site (%) - parameter SIP",70),...ISOF]};
+["qms","ems","ohs","isms"].forEach(k=>{const f0=SC[k].fn;SC[k].fn=v=>msEng(v,k,f0(v));SC[k].f=[...SC[k].f,MSCK,...MSR]});
+SC.ims={n:"Integrasi Sistem Manajemen",fn:ims,get f(){return imsF()}};
+
+//--B: REVISI MESIN HITUNG DAN TAMPILAN v0.3
+
+const OHS_TABLE={
+  Tinggi:[3,3.5,4.5,5.5,7,8,9,11,12,13,15,16,17,19,20,21,23,25,27,28,30,32,34],
+  Sedang:[2.5,3,3.5,4.5,5.5,6,7,8,9,10,11,12,13,15,16,17,18,19,20,21,23,25,27],
+  Rendah:[2.5,3,3,3.5,4,4.5,5,5.5,6,7,8,9,10,11,12,12,13,14,15,16,17,19,20]
+};
+const ISMS_FACTORS=[
+  ["f1","Kompleksitas ISMS dan kekritisan informasi"],
+  ["f2","Jenis kegiatan bisnis dalam lingkup ISMS"],
+  ["f3","Kinerja ISMS yang telah dibuktikan sebelumnya"],
+  ["f4","Keragaman teknologi dan infrastruktur TI"],
+  ["f5","Penggunaan outsourcing dan pihak ketiga"],
+  ["f6","Pengembangan sistem informasi"],
+  ["f7","Jumlah lokasi dan Disaster Recovery (DR) Site"],
+  ["f8","Jumlah dan kompleksitas kontrol setelah Stage 1"],
+  ["f9","Perubahan ISMS untuk penilikan atau resertifikasi"]
+];
+const IMS_ASPECTS=[
+  ["ai0","Integrasi dokumentasi sistem manajemen"],
+  ["ai1","Integrasi management review"],
+  ["ai2","Integrasi audit internal"],
+  ["ai3","Integrasi kebijakan dan sasaran"],
+  ["ai4","Integrasi proses sistem manajemen"],
+  ["ai5","Integrasi tindakan perbaikan dan peningkatan berkelanjutan"],
+  ["ai6","Integrasi dukungan manajemen dan tanggung jawab"]
+];
+const IMS_MATRIX={
+  0:[0,0,0,0,0,0],20:[0,0,0,0,0,0],40:[0,5,5,5,5,5],
+  60:[0,5,10,10,10,10],80:[0,5,10,15,15,15],100:[0,5,10,15,20,20]
+};
+const nearest20=x=>Math.max(0,Math.min(100,Math.floor((Math.max(0,Math.min(100,x))+10-1e-9)/20)*20));
+const ISMS_SCORE_PCT=score=>Math.max(0,Math.min(30,Math.round(((score-9)/18)*6)*5));
+
+function ohsFixed(v){
+  const st=[],w=[],ex={};enp(v,w);
+  const base=lk(EB,OHS_TABLE[v.kat]||OHS_TABLE.Sedang,v.enp);
+  let b=base;
+  if(v.enp>10700){
+    if(v.manualExt>0)b+=v.manualExt;
+    else w.push("ENP >10.700: IAF MD 5 meminta progression di atas tabel; isi tambahan MD manual berdasarkan progression yang didokumentasikan.");
+  }
+  const adj=+v.adj||0;let m=b+adj;const floor=b*.7;
+  st.push(S("R-OHS-01","IAF MD 5:2023, Tabel OH&SMS 1",`ENP ${v.enp}, kategori risiko ${v.kat} → MD dasar ${base}${v.enp>10700?` + tambahan progression ${v.manualExt||0}`:""} = ${b} MD (Stage 1 + Stage 2)` ,"IAF MD 5:2023"));
+  if(adj&&!v.just)w.push("Penyesuaian MD ISO 45001 wajib disertai justifikasi.");
+  if(m<floor){w.push(`Pengurangan melampaui batas 30%; MD dikunci pada minimum ${+floor.toFixed(2)}.`);m=floor;}
+  st.push(S("R-OHS-02","IAF MD 5:2023 §2.3 / kebijakan SIP",`Penyesuaian ${adj>=0?"+":""}${adj} MD; hasil ${+m.toFixed(3)} MD; batas bawah 70% dari dasar ${+floor.toFixed(2)} MD → ${c5(m)} MD setelah pembulatan 0,5 hari`,"IAF MD 5:2023 / Keputusan SIP"));
+  ex["MD dasar OH&SMS 1"]=b;
+  return{md:iso(v,c5(m),st,w,ex),st,w,ex};
+}
+
+function ismsFixed(v){
+  const st=[],w=[],ex={};enp(v,w);
+  let base=lk(IB,IV,v.enp);
+  if(v.enp>10700){
+    if(v.manualExt>0)base+=v.manualExt;
+    else w.push("ENP >10.700: Table C.1 meminta progression di atas tabel; isi tambahan MD manual berdasarkan progression yang didokumentasikan.");
+  }
+  const scores=ISMS_FACTORS.map(([k])=>Math.max(1,Math.min(3,parseInt(v[k],10)||1)));
+  const total=scores.reduce((a,b)=>a+b,0),pct=ISMS_SCORE_PCT(total);
+  st.push(S("R-ISMS-01","ISO/IEC 27006-1:2024 Table C.1",`ENP ${v.enp} → MD dasar ISMS ${base} MD (audit awal, Stage 1 + Stage 2)`,"ISO/IEC 27006-1:2024"));
+  ISMS_FACTORS.forEach(([k,label],i)=>st.push(S("R-ISMS-02","ISO/IEC 27006-1:2024 C.3.5",`${label}: skor ${scores[i]} (rentang 1–3)`,"Faktor pertimbangan C.3.5; skoring SIP")));
+  st.push(S("R-ISMS-03","Kebijakan internal SIP",`Total skor ${total} dari rentang 9–27 → tambahan ${pct}% (pemetaan proporsional ke 0–30%, kelipatan 5%)`,"Kebijakan SIP; bukan persentase yang ditetapkan ISO/IEC 27006-1"));
+  const adjusted=base*(1+pct/100);
+  st.push(S("R-ISMS-04","ISO/IEC 27006-1:2024 C.3.3–C.3.6 / kebijakan SIP",`${base} × (1 + ${pct}%) = ${+adjusted.toFixed(3)} MD sebelum pembulatan`,"Table C.1 + kebijakan SIP"));
+  ex["MD dasar Table C.1"]=base;ex["Total skor 9 faktor"]=total;ex["Tambahan SIP"]=pct+"%";
+  return{md:iso(v,c5(adjusted),st,w,ex),st,w,ex};
+}
+
+const MS_FIELDS=[
+  B("ms","Audit multi-site"),
+  { ...N("m_nloc","Jumlah seluruh lokasi (termasuk central function)",2),ms:1 },
+  { ...N("m_nhq","Jumlah lokasi/fungsi pusat yang diaudit terpisah",1),ms:1 },
+  { ...N("m_nop","Jumlah lokasi operasional (x) untuk rumus sampel; isi eksplisit bila central function berada di lokasi operasional",0),ms:1 },
+  { ...B("m_eff","Sistem terbukti efektif selama siklus sertifikasi (opsi 0,8√x untuk resertifikasi)"),ms:1 },
+  { ...HH("Kelayakan multi-site — IAF MD 1:2023 klausul 5.1–5.6"),ms:1 },
+  { ...B("m_c1","5.1 — Organisasi menerapkan satu sistem manajemen"),ms:1 },
+  { ...B("m_c2","5.2 — Central function teridentifikasi, bagian organisasi, dan tidak disubkontrakkan"),ms:1 },
+  { ...B("m_c3","5.3 — Central function berwenang menetapkan, membangun, dan memelihara sistem manajemen"),ms:1 },
+  { ...B("m_c4","5.4 — Management review dilakukan secara terpusat"),ms:1 },
+  { ...B("m_c5","5.5 — Seluruh lokasi masuk program audit internal organisasi"),ms:1 },
+  { ...B("m_c6","5.6 — Central function mengumpulkan/menganalisis data seluruh lokasi (dokumen/perubahan sistem, MR, keluhan, tindakan korektif, audit internal, kepatuhan hukum) dan berwenang memulai perubahan organisasi"),ms:1 },
+  { ...B("m_similar","6.1.1 — Lokasi yang akan disampel menjalankan proses/aktivitas yang sangat mirip"),ms:1 },
+  { ...B("m_random","6.1.2.2 — Minimal 25% dari sampel dipilih secara acak"),ms:1 },
+  {k:"m_alloc",l:"Alokasi MD per lokasi yang diaudit (ditetapkan manual oleh tim audit berdasarkan risiko)",t:"alloc",d:"",ms:1},
+  { ...T("m_just","Justifikasi kelayakan, pemilihan sampel, alokasi MD, dan pengurangan per lokasi",""),ms:1 }
+];
+const withMs=fields=>[...fields.filter(x=>!x.ms&&x.k!=="ms"&&x.k!=="lingkup"),...MS_FIELDS];
+SC.qms.n="ISO 9001";SC.ems.n="ISO 14001";
+SC.qms.f=withMs(SC.qms.f);SC.ems.f=withMs(SC.ems.f);
+SC.qms.fn=v=>msEngineFixed(v,qms(v));SC.ems.fn=v=>msEngineFixed(v,ems(v));
+SC.ohs={n:"ISO 45001",fn:v=>msEngineFixed(v,ohsFixed(v)),f:[
+  N("enp","ENP (jumlah personel efektif)",120),
+  SEL("kat","Kategori kompleksitas risiko K3",[["Tinggi","Tinggi"],["Sedang","Sedang"],["Rendah","Rendah"]],"Sedang"),
+  NG("adj","Penyesuaian waktu audit (MD, + / −)",0),
+  N("manualExt","Tambahan MD manual untuk ENP >10.700 (sesuai progression tabel)",0),
+  ...ISOF,
+  ...MS_FIELDS
+]};
+SC.isms={n:"ISO 27001",fn:ismsFixed,f:[
+  N("enp","ENP (jumlah personel efektif dalam lingkup ISMS)",120),
+  HH("Pemetaan skor SIP: 9 = 0%; 12 = 5%; 15 = 10%; 18 = 15%; 21 = 20%; 24 = 25%; 27 = 30%. Nilai di antaranya dibulatkan ke kelipatan 5% terdekat."),
+  ...ISMS_FACTORS.map(([k,l])=>SEL(k,l,[["1","1 — Rendah"],["2","2 — Sedang"],["3","3 — Tinggi"]],"2")),
+  N("manualExt","Tambahan MD manual untuk ENP >10.700 (sesuai progression Table C.1)",0),
+  ...ISOF
+]};
+Object.assign(RAW,{qms,ems,ohs:ohsFixed,isms:ismsFixed});
+
+function allocParse(value){
+  return String(value||"").split(";").filter(Boolean).map(line=>{
+    const a=line.split(",");return{type:(a[0]||"").trim(),name:(a[1]||"").trim(),md:parseFloat(a[2]),pct:parseFloat(a[3]),risk:(a[4]||"").trim()};
+  });
+}
+function msEngineFixed(v,r){
+  if(!v.ms)return r;
+  const st=r.st,w=r.w,ex=r.ex||{};
+  const rawNloc=+v.m_nloc||0,rawNhq=+v.m_nhq||0,rawNop=+v.m_nop||0;
+  const nloc=Math.floor(rawNloc),nhq=Math.floor(rawNhq),x=rawNop>0?Math.floor(rawNop):nloc-nhq;
+  const countsValid=Number.isInteger(rawNloc)&&Number.isInteger(rawNhq)&&(rawNop<=0||Number.isInteger(rawNop))&&nloc>=2&&nhq>=1&&nhq<nloc&&x>=1;
+  const eligible=[1,2,3,4,5,6].every(i=>!!v["m_c"+i]);
+  const cycle=v.jenis||"awal";
+  ex["Kelayakan multi-site"]=eligible?"Memenuhi klausul 5.1–5.6":"Tidak memenuhi klausul 5.1–5.6";
+  ex["Jumlah lokasi operasional (x)"]=x;
+  ex["Dasar x"] = rawNop>0?"Input manual — lokasi operasional":"Jumlah lokasi keseluruhan dikurangi lokasi/fungsi pusat";
+  if(!countsValid){
+    w.push("Jumlah lokasi tidak valid: jumlah seluruh lokasi minimal 2; lokasi/fungsi pusat minimal 1 dan lebih kecil dari jumlah seluruh lokasi; x harus bilangan bulat minimal 1.");
+    w.push("MD multi-site belum dapat ditetapkan; periksa kembali jumlah lokasi dan central function.");
+    r.ex=ex;return r;
+  }
+  if(!eligible){
+    w.push("Organisasi belum memenuhi seluruh syarat kelayakan IAF MD 1 klausul 5.1–5.6. Sertifikasi multi-site tidak dapat dihitung dengan metode §6.1/§6.2; penuhi syarat kelayakan atau evaluasi sertifikasi per lokasi. Angka MD yang tampil hanya MD dasar skema tunggal, bukan MD final multi-site.");
+    st.push(S("R-MS-01","IAF MD 1:2023 §5.1–5.6","Kelayakan multi-site tidak terpenuhi; kalkulator tidak menerapkan sampling maupun metode non-sampling dan tidak menetapkan MD final multi-site.","IAF MD 1:2023"));
+    r.ex=ex;return r;
+  }
+  if(v.m_eff&&cycle!=="ulang")w.push("Opsi efektivitas sistem 0,8√x hanya berlaku untuk resertifikasi.");
+  const sampling=!!v.m_similar&&x>=1;
+  if(sampling&&!v.m_random)w.push("Konfirmasi bahwa sekurang-kurangnya 25% sampel dipilih secara acak sesuai IAF MD 1 klausul 6.1.2.2.");
+  let sample=0,full=0,method="";
+  if(sampling){
+    const coefficient=cycle==="penilikan"?0.6:(cycle==="ulang"&&v.m_eff?0.8:1);
+    sample=CE(coefficient*Math.sqrt(x));
+    method=cycle==="penilikan"?"0,6√x":cycle==="ulang"&&v.m_eff?"0,8√x":"√x";
+  }else{
+    full=cycle==="penilikan"?CE(.3*x):x;
+    method=cycle==="penilikan"?"30% lokasi (metode tanpa sampling, §6.2.1)":"seluruh lokasi operasional (metode tanpa sampling)";
+  }
+  ex["Jumlah sampel operasional"]=sampling?sample:0;
+  ex["Lokasi operasional wajib audit"]=sampling?sample:full;
+  ex["Central function wajib diaudit"]=nhq;
+  ex["Metode penentuan sampel"]=method;
+  st.push(S("R-MS-01","IAF MD 1:2023 §5.1–5.6; §6.1.1–6.1.2.2",`Kelayakan terpenuhi; kesamaan proses ${v.m_similar?"Ya":"Tidak"}; minimum 25% sampel acak ${sampling?(v.m_random?"dikonfirmasi":"belum dikonfirmasi") : "tidak berlaku (metode non-sampling)"}; lokasi operasional x = ${nloc} − ${nhq} = ${x}.`,`IAF MD 1:2023`));
+  st.push(S("R-MS-02","IAF MD 1:2023 §6.1.3.3 / §6.2.1",sampling?`Jumlah sampel = ceil(${method}) = ${sample}; central function ${nhq} lokasi diaudit terpisah.`:`Tidak menggunakan site sampling: ${method} = ${full} lokasi operasional; central function ${nhq} lokasi diaudit terpisah.`,"IAF MD 1:2023"));
+  const rows=allocParse(v.m_alloc);
+  const counts={HQ:rows.filter(a=>a.type==="HQ").length,SAMPLE:rows.filter(a=>a.type==="SAMPLE").length,FULL:rows.filter(a=>a.type==="FULL").length};
+  const expect={HQ:nhq,SAMPLE:sampling?sample:0,FULL:sampling?0:full};
+  let valid=rows.length>0;
+  ["HQ","SAMPLE","FULL"].forEach(k=>{if(counts[k]!==expect[k]){valid=false;w.push(`Alokasi lokasi ${k}: terisi ${counts[k]}, seharusnya ${expect[k]}.`);}});
+  let sum=0;
+  rows.forEach(a=>{
+    if(!a.name||!Number.isFinite(a.md)||a.md<=0||!Number.isFinite(a.pct)||a.pct<0||!a.risk){valid=false;w.push("Setiap alokasi harus memiliki nama lokasi, MD positif, persentase pengurangan valid, serta risiko/justifikasi lokasi.");return;}
+    const cap=a.type==="HQ"?20:50;
+    const applied=Math.min(a.pct,cap);
+    if(a.pct>cap)w.push(`${a.name}: pengurangan ${a.pct}% dibatasi menjadi ${cap}% sesuai IAF MD 1 klausul 7.3.1.`);
+    sum+=a.md*(1-applied/100);
+    st.push(S("R-MS-03","IAF MD 1:2023 §7.3.1",`${a.name} (${a.type}): alokasi ${a.md} MD; risiko/dasar: ${a.risk}; pengurangan ${applied}% = ${+(a.md*(1-applied/100)).toFixed(3)} MD (batas ${cap}%).`,"IAF MD 1:2023 / Alokasi manual tim audit"));
+  });
+  if(!v.m_just)w.push("Alokasi MD per lokasi dan/atau pengurangan wajib disertai justifikasi tim audit berdasarkan risiko.");
+  if(valid){
+    ex["MD alokasi sebelum pengurangan"]=+rows.reduce((a,b)=>a+b.md,0).toFixed(3);
+    ex["MD setelah pengurangan per lokasi"]=c5(sum);
+    r.md=c5(sum);
+    st.push(S("R-MS-04","IAF MD 1:2023 §7.3.1",`Total MD dari alokasi per lokasi = ${+sum.toFixed(3)} → ${r.md} MD (pembulatan 0,5 hari).`,"Kebijakan alokasi SIP berdasarkan justifikasi tim audit"));
+  }else{
+    w.push("Alokasi MD multi-site belum lengkap; MD pada layar masih merupakan hasil perhitungan dasar skema dan belum menjadi MD final multi-site.");
+  }
+  r.ex=ex;return r;
+}
+
+function imsFormFixed(){
+  const chosen=STDS.filter(([k])=>SELS[k]);
+  const f=[HH("Pilih standar yang diintegrasikan (minimal 2)"),...STDS.map(([k,n])=>B("std_"+k,n))];
+  chosen.forEach(([k,n])=>{
+    f.push(HH("Parameter "+n));
+    SC[k].f.filter(x=>!x.ms&&x.k!=="ms"&&x.k!=="lingkup").forEach(x=>f.push({...x,k:k+"_"+x.k,l:"["+n+"] "+x.l}));
+  });
+  f.push(HH("Penilaian integrasi — IAF MD 11:2023 Annex 1"));
+  IMS_ASPECTS.forEach(([k,l])=>f.push(B(k,l)));
+  f.push({k:"auditors",l:"Tim auditor — masukkan nama dan jumlah standar yang dikuasai setiap auditor",t:"a",d:"Auditor 1,1;Auditor 2,1"});
+  f.push(N("tam","Penambahan kompleksitas audit IMS (MD, bila ada)",0));
+  if(chosen.some(([k])=>k==="isms"))f.push(B("ident","ISMS tetap dapat diidentifikasi secara terpisah dalam audit dan laporan (ISO/IEC 27006-1 §9.1.6)"));
+  f.push(T("just","Justifikasi penyesuaian durasi IMS",""));
+  f.push(T("lingkup","Lingkup sertifikasi / audit (untuk rekap)",""));
+  return f;
+}
+function imsFixed(v){
+  const st=[],w=[],ex={},chosen=STDS.filter(([k])=>v["std_"+k]);
+  if(chosen.length<2){w.push("Pilih minimal dua standar untuk menghitung audit terintegrasi.");return{md:0,st,w,ex};}
+  let Tt=0;
+  chosen.forEach(([k,n])=>{
+    const sv={};Object.keys(v).forEach(key=>{if(key.startsWith(k+"_"))sv[key.slice(k.length+1)]=v[key];});
+    const r=RAW[k](sv);Tt+=r.md;ex[n]=r.md;
+    r.st.forEach(x=>st.push({...x,r:n+" · "+x.r}));
+    r.w.forEach(x=>w.push("["+n+"] "+x));
+  });
+  const Y=chosen.length,aud=String(v.auditors||"").split(";").filter(Boolean).map(line=>{const p=line.split(",");return{name:(p[0]||"").trim(),x:parseInt(p[1],10)};});
+  let H=0,audValid=aud.length>0&&aud.every(a=>a.name&&Number.isInteger(a.x)&&a.x>=1&&a.x<=Y);
+  if(!audValid){w.push(`Lengkapi nama dan jumlah standar yang dikuasai untuk setiap auditor (1 sampai ${Y}); minimal satu auditor.`);}
+  else H=100*aud.reduce((s,a)=>s+(a.x-1),0)/(aud.length*(Y-1));
+  const yes=IMS_ASPECTS.filter(([k])=>!!v[k]).length;
+  const integrationRaw=yes/7*100,level=nearest20(integrationRaw),ability=nearest20(H);
+  let P=audValid?IMS_MATRIX[level][Math.round(ability/20)]:0;
+  if(chosen.some(([k])=>k==="isms")&&P>0&&!v.ident){w.push("Pengurangan IMS tidak diterapkan karena ISMS belum dikonfirmasi dapat diidentifikasi dalam audit dan laporan.");P=0;}
+  const reduction=Math.min(Tt*P/100,Tt*.20),tam=Math.max(0,+v.tam||0),raw=Tt-reduction+tam,md=c5(raw);
+  st.push(S("R-IMS-01","IAF MD 11:2023 §2.1.5.1",`T = jumlah MD masing-masing standar = ${+Tt.toFixed(3)} MD.`,"IAF MD 11:2023"));
+  st.push(S("R-IMS-02","IAF MD 11:2023 Annex 1",`${yes}/7 aspek Ya → tingkat integrasi awal ${+integrationRaw.toFixed(2)}%; dipetakan ke ${level}% terdekat (titik tengah dibulatkan ke bawah).`,"IAF MD 11 Annex 1; pemetaan Ya/Tidak ke level matriks merupakan kebijakan SIP"));
+  st.push(S("R-IMS-03","IAF MD 11:2023 Annex 1",`H = 100 × Σ(Xi − 1) / [Z × (Y − 1)] = ${+H.toFixed(2)}% (Z=${aud.length} auditor; Y=${Y} standar); nilai matriks terdekat = ${ability}%.`,"Rumus H: IAF MD 11 Annex 1"));
+  st.push(S("R-IMS-04","IAF MD 11:2023 Annex 1 Figure 1",`Matriks pada level integrasi ${level}% dan kemampuan audit gabungan ${ability}% menghasilkan P = ${P}%. Titik tengah dibulatkan ke bawah.`,"Matriks IAF MD 11 Annex 1"));
+  st.push(S("R-IMS-05","IAF MD 11:2023 §2.1.5.2",`Pengurangan = ${P}% × T, dibatasi maksimal 20% × T = ${+(Tt*.2).toFixed(3)} MD; pengurangan diterapkan ${+reduction.toFixed(3)} MD.`,"IAF MD 11:2023"));
+  st.push(S("R-IMS-06","IAF MD 11:2023 §2.1.5.3 / kebijakan SIP",`MD akhir = T − pengurangan + tambahan kompleksitas = ${+Tt.toFixed(3)} − ${+reduction.toFixed(3)} + ${tam} = ${+raw.toFixed(3)} → ${md} MD.`,"IAF MD 11:2023 / Kebijakan SIP"));
+  if((P>0||tam>0)&&!v.just)w.push("Penyesuaian/pengurangan durasi IMS wajib didukung justifikasi yang terdokumentasi.");
+  ex["T — total MD sebelum integrasi"]=+Tt.toFixed(3);ex["Aspek integrasi Ya"]=yes+"/7";ex["Tingkat integrasi"]=level+"%";ex["H kemampuan audit gabungan"]=+H.toFixed(2)+"%";ex["Kolom kemampuan auditor"]=ability+"%";ex["Pengurangan P"]=P+"%";ex["Pengurangan MD"]=+reduction.toFixed(3);
+  return{md,st,w,ex};
+}
+SC.ims={n:"Integrasi Sistem Manajemen",fn:imsFixed,get f(){return imsFormFixed();}};
+Object.keys(SC).forEach(k=>{if(k!=="ims"&&!SC[k].f.some(x=>x.k==="lingkup"))SC[k].f.push(T("lingkup","Lingkup sertifikasi / audit (untuk rekap)",""));});
+
+const grpOf=s=>Object.keys(GP).find(g=>GP[g][1].includes(s));
+const lbl=(s,v)=>GP[grpOf(s)][0]+" → "+SC[s].n+(s==="ims"?" → "+STDS.filter(([k])=>v["std_"+k]).map(x=>x[1]).join(" + "):"");
+const gp=$("gp");
+function fillSk(){sk.innerHTML="";GP[gp.value][1].forEach(k=>sk.add(new Option(SC[k].n,k)));const one=GP[gp.value][1].length<2;sk.hidden=one;$("sl").hidden=one;}
+const escHtml=x=>String(x??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+function audRow(a){return `<tr><td><input class="aName" value="${escHtml(a[0]||"")}" placeholder="Nama auditor"></td><td><input class="aCount" type="number" min="1" step="1" value="${escHtml(a[1]??1)}"></td><td><button type="button" class="o" data-del="aud">Hapus</button></td></tr>`;}
+function setAud(t,value){const rows=String(value||"").split(";").filter(Boolean).map(x=>x.split(","));t.tBodies[0].innerHTML=rows.map(a=>audRow(a)).join("");}
+function audVal(t){return [...t.tBodies[0].rows].map(r=>[r.querySelector(".aName").value.replace(/[;,]/g," ").trim(),r.querySelector(".aCount").value].join(",")).join(";");}
+function allocRow(a){return `<tr><td><select class="mType"><option value="HQ"${a[0]==="HQ"?" selected":""}>Fungsi pusat</option><option value="SAMPLE"${a[0]==="SAMPLE"?" selected":""}>Lokasi sampel</option><option value="FULL"${a[0]==="FULL"?" selected":""}>Lokasi terpilih (non-sampling)</option></select></td><td><input class="mName" value="${escHtml(a[1]||"")}" placeholder="Nama lokasi"></td><td><input class="mMD" type="number" min="0" step="0.5" value="${escHtml(a[2]??0)}"></td><td><input class="mPct" type="number" min="0" max="100" step="1" value="${escHtml(a[3]??0)}"></td><td><input class="mRisk" value="${escHtml(a[4]||"")}" placeholder="Risiko / dasar alokasi"></td><td><button type="button" class="o" data-del="alloc">Hapus</button></td></tr>`;}
+function setAlloc(t,value){const rows=String(value||"").split(";").filter(Boolean).map(x=>x.split(","));t.tBodies[0].innerHTML=rows.map(a=>allocRow(a)).join("");}
+function allocVal(t){return [...t.tBodies[0].rows].map(r=>[r.querySelector(".mType").value,r.querySelector(".mName").value.replace(/[;,]/g," ").trim(),r.querySelector(".mMD").value,r.querySelector(".mPct").value,r.querySelector(".mRisk").value.replace(/[;,]/g," ").trim()].join(",")).join(";");}
+function tableHtml(id,type){
+  if(type==="a")return `<div class="t"><table class="rt" id="${id}" data-kind="aud"><thead><tr><th>Nama auditor</th><th>Jumlah standar yang dikuasai (Xi)</th><th></th></tr></thead><tbody></tbody></table></div><button type="button" class="o" data-add="aud" style="margin-top:6px">+ Tambah auditor</button><div class="s">Isi Xi sebagai jumlah standar dalam audit IMS yang dapat diaudit auditor tersebut.</div>`;
+  return `<div class="t"><table class="rt" id="${id}" data-kind="alloc"><thead><tr><th>Jenis alokasi</th><th>Nama lokasi</th><th>MD sebelum pengurangan</th><th>Pengurangan diusulkan (%)</th><th>Risiko / justifikasi dasar alokasi</th><th></th></tr></thead><tbody></tbody></table></div><button type="button" class="o" data-add="alloc" style="margin-top:6px">+ Tambah lokasi</button><div class="s">Batas otomatis: fungsi pusat maksimal 20%; setiap lokasi terpilih (sampling maupun non-sampling) maksimal 50% sesuai §7.3.1.</div>`;
+}
+function msT(){const c=$("f_ms");document.querySelectorAll(".msf").forEach(d=>d.hidden=!(c&&c.checked));}
+function form(state){
+  const f=$("fm");f.innerHTML="";const fields=SC[sk.value].f;
+  fields.forEach(x=>{
+    const d=document.createElement("div");if(x.ms)d.className="msf";
+    if(x.t==="h"){d.style.gridColumn="1/-1";d.innerHTML=`<h2 style="margin-top:8px">${escHtml(x.l)}</h2>`;f.append(d);return;}
+    let h=`<label for="f_${x.k}">${escHtml(x.l)}</label>`;
+    if(x.o)h+=`<select id="f_${x.k}">${x.o.map(o=>`<option value="${escHtml(o[0])}"${String(o[0])===String(x.d)?" selected":""}>${escHtml(o[1])}</option>`).join("")}</select>`;
+    else if(x.t==="a"||x.t==="alloc")h+=tableHtml("f_"+x.k,x.t);
+    else if(x.t==="r")h+=rowsHtml("f_"+x.k);
+    else if(x.t==="f")h+=fasHtml("f_"+x.k);
+    else if(x.t==="b")h+=`<input type="checkbox" id="f_${x.k}"${x.k.startsWith("std_")&&SELS[x.k.slice(4)]?" checked":""}>`;
+    else if(x.t==="t")h+=`<input id="f_${x.k}" value="${escHtml(x.d||"")}">`;
+    else h+=`<input type="number" step="any" ${x.neg?"":"min=\"0\" "}id="f_${x.k}" value="${escHtml(x.d??0)}">`;
+    d.innerHTML=h;
+    if(x.t==="a"||x.t==="alloc"){
+      d.style.gridColumn="1/-1";const t=d.querySelector("table");
+      if(x.t==="a")setAud(t,x.d);else setAlloc(t,x.d);
+      d.addEventListener("click",e=>{
+        if(e.target.dataset.add==="aud")t.tBodies[0].insertAdjacentHTML("beforeend",audRow(["",1]));
+        if(e.target.dataset.add==="alloc")t.tBodies[0].insertAdjacentHTML("beforeend",allocRow(["SAMPLE","",0,0]));
+        if(e.target.dataset.del)e.target.closest("tr").remove();
+      });
+    }
+    if(x.t==="r"){d.style.gridColumn="1/-1";const t=d.querySelector("table");setRows(t,x.d);d.onclick=e=>{if(e.target.dataset.add)t.tBodies[0].insertAdjacentHTML("beforeend",RU(["SAMPLE","",0,0,0]));if(e.target.dataset.del)e.target.closest("tr").remove();};}
+    if(x.t==="f"){d.style.gridColumn="1/-1";const t=d.querySelector("table"),c=()=>{d.querySelector("span").textContent=t.tBodies[0].rows.length+" fasilitas";};setFas(t,x.d);c();d.onclick=e=>{if(e.target.dataset.add)t.tBodies[0].insertAdjacentHTML("beforeend",FU(["Fasilitas "+(t.tBodies[0].rows.length+1),0]));if(e.target.dataset.del)e.target.closest("tr").remove();c();};}
+    if(["m_alloc","auditors"].includes(x.k))d.style.gridColumn="1/-1";
+    f.append(d);
+  });
+  if(state){
+    fields.forEach(x=>{
+      if(x.t==="h"||!Object.prototype.hasOwnProperty.call(state,x.k))return;
+      const el=$("f_"+x.k);if(!el)return;
+      if(x.t==="b")el.checked=!!state[x.k];
+      else if(x.t==="a")setAud(el,state[x.k]);
+      else if(x.t==="alloc")setAlloc(el,state[x.k]);
+      else if(x.t==="r")setRows(el,state[x.k]);
+      else if(x.t==="f")setFas(el,state[x.k]);
+      else el.value=state[x.k];
+    });
+  }
+  msT();
+}
+function read(){
+  const v={};SC[sk.value].f.forEach(x=>{
+    if(x.t==="h")return;const e=$("f_"+x.k);if(!e)return;
+    v[x.k]=x.t==="b"?e.checked:x.t==="n"?(parseFloat(e.value)||0):x.t==="a"?audVal(e):x.t==="alloc"?allocVal(e):x.t==="r"?rowsVal(e):x.t==="f"?fasVal(e):e.value;
+  });return v;
+}
+function formatField(x,value){
+  if(x.t==="h")return null;
+  if(x.t==="b")return value?"Ya":"Tidak";
+  if(x.t==="a")return String(value||"").split(";").filter(Boolean).map(r=>{const a=r.split(",");return `${a[0]} (${a[1]} standar)`;}).join("; ")||"-";
+  if(x.t==="alloc")return allocParse(value).map(a=>`${a.name} — ${a.type}: ${a.md} MD, pengurangan ${a.pct}%, risiko: ${a.risk||"-"}`).join("; ")||"-";
+  if(x.t==="r"||x.t==="f")return String(value||"").split(";").filter(Boolean).map(r=>r.replace(/,/g," / ")).join("; ")||"-";
+  if(x.o){const o=x.o.find(q=>String(q[0])===String(value));return o?o[1]:String(value??"-");}
+  return String(value===undefined||value===""?"-":value);
+}
+var fv=(s,v)=>{
+  const out=[["Kelompok / skema",lbl(s,v)]];
+  SC[s].f.forEach(x=>{const z=formatField(x,v[x.k]);if(z!==null)out.push([x.l,z]);});return out;
+};
+function show(s,v,r){
+  const o=$("out");o.hidden=false;
+  const ex=Object.entries(r.ex||{}).map(([k,x])=>`<span class="s">${escHtml(k)}: <b>${escHtml(x)}</b></span>`).join(" · ");
+  const details=r.st.map(x=>`<tr><td>${escHtml(x.r)}</td><td>${escHtml(x.k)}</td><td>${escHtml(x.t)}</td><td>${escHtml(x.src)}</td></tr>`).join("");
+  o.innerHTML=`<div class="s">${escHtml(lbl(s,v))}</div><div class="md">${escHtml(r.md)} <span style="font-size:16px">MD</span></div><div>${ex}</div>${r.w.length?`<ul class="w">${r.w.map(x=>`<li>${escHtml(x)}</li>`).join("")}</ul>`:`<div class="k">Validasi lolos</div>`}<h2 style="margin-top:12px">Rincian perhitungan dan dasar ketentuan</h2><div class="t"><table><tr><th>Aturan</th><th>Klausul</th><th>Perhitungan</th><th>Sumber</th></tr>${details}</table></div><div style="margin-top:10px"><button id="bp">Unduh PDF</button> <button class="o" id="bw">Unduh Word</button></div>`;
+  LAST={s,v,r,t:new Date().toLocaleString("id-ID")};$("bp").onclick=()=>gd(calcPdf,LAST);$("bw").onclick=()=>gd(calcDoc,LAST);
+}
+
+function historyTable(){
+  $("hs").innerHTML="<tr><th>Waktu</th><th>Skema</th><th>Lingkup</th><th>MD</th><th></th></tr>"+H.map((h,i)=>`<tr><td>${escHtml(h.w)}</td><td>${escHtml(lbl(h.s,h.v))}</td><td>${escHtml(h.v?.lingkup||"-")}</td><td>${escHtml(h.md)}</td><td><button class="o" data-i="${i}">Buka</button></td></tr>`).join("");
+}
+function calcNow(){const s=sk.value,v=read(),r=SC[s].fn(v);show(s,v,r);H.unshift({w:new Date().toLocaleString("id-ID"),s,v,md:r.md,ex:r.ex});H=H.slice(0,50);save();historyTable();}
+function restoreHistory(i){
+  const h=H[i];if(!h)return;gp.value=grpOf(h.s);fillSk();sk.value=h.s;
+  if(h.s==="ims")STDS.forEach(([k])=>SELS[k]=h.v["std_"+k]?1:0);
+  form(h.v);const r=SC[h.s].fn(h.v);show(h.s,h.v,r);
+  $("out").insertAdjacentHTML("afterbegin",`<div class="${r.md==h.md?"k":"w"}">Reproduksi: ${r.md==h.md?"hasil sama":"hasil berbeda"} (${escHtml(h.md)} → ${escHtml(r.md)})</div>`);
+}
+
+const DOC_VERSION="IK SIP-IK-SAL-01-01 rev_03_1 · engine v0.3";
+async function calcPdf(L){
+  const d=pdfDoc(),blue=[31,78,140],light=[235,241,248];
+  d.setFont("helvetica","bold");d.setFontSize(16);d.setTextColor(...blue);d.text("HASIL PERHITUNGAN MAN-DAY AUDIT",40,42);
+  d.setFont("helvetica","normal");d.setFontSize(9);d.setTextColor(95);d.text(pf(DOC_VERSION),40,58);d.text("Waktu perhitungan: "+pf(L.t),40,72);
+  d.autoTable({startY:86,head:[["Informasi","Keterangan"]],body:[["Skema",lbl(L.s,L.v)],["Lingkup sertifikasi / audit",L.v.lingkup||"-"],["Hasil perhitungan",L.r.md+" MD"]].map(r=>r.map(pf)),styles:{fontSize:9,cellPadding:6},headStyles:{fillColor:blue},alternateRowStyles:{fillColor:light}});
+  let y=d.lastAutoTable.finalY+16;d.setFont("helvetica","bold");d.setFontSize(11);d.setTextColor(0);d.text("Parameter perhitungan",40,y);
+  d.autoTable({startY:y+7,head:[["Parameter","Nilai"]],body:fv(L.s,L.v).filter(r=>r[0]!=="Kelompok / skema").map(r=>r.map(pf)),styles:{fontSize:8,cellPadding:4},headStyles:{fillColor:blue},columnStyles:{0:{cellWidth:195}}});
+  y=d.lastAutoTable.finalY+17;d.setFont("helvetica","bold");d.setFontSize(11);d.text("Rincian formula dan dasar ketentuan",40,y);
+  d.autoTable({startY:y+7,head:[["Aturan","Klausul","Perhitungan","Sumber"]],body:L.r.st.map(x=>[x.r,x.k,x.t,x.src].map(pf)),styles:{fontSize:7.5,cellPadding:4,overflow:"linebreak"},headStyles:{fillColor:blue},columnStyles:{0:{cellWidth:72},1:{cellWidth:90},2:{cellWidth:235},3:{cellWidth:90}}});
+  y=d.lastAutoTable.finalY+15;
+  if(L.r.w.length){d.setFont("helvetica","bold");d.setFontSize(9);d.setTextColor(180,70,30);d.text("Catatan validasi",40,y);d.setFont("helvetica","normal");d.setTextColor(0);d.setFontSize(8);const lines=d.splitTextToSize(pf(L.r.w.map((x,i)=>(i+1)+". "+x).join("  ")),510);d.text(lines,40,y+12);}
+  else{d.setFont("helvetica","bold");d.setTextColor(30,120,75);d.setFontSize(9);d.text("Validasi: tidak ada peringatan.",40,y);}
+  await sv(nm(L.s,L.t)+".pdf",d.output("blob"));
+}
+async function calcDoc(L){
+  const D=docx,blue="1F4E8C",pale="EBF1F8",border={style:D.BorderStyle.SINGLE,size:1,color:"D9DDE3"};
+  const P=(txt,opt={})=>new D.Paragraph({spacing:{after:opt.after??90},children:[new D.TextRun({text:String(txt??""),bold:!!opt.bold,color:opt.color||"1B1F24",size:opt.size||20,font:"Arial"})]});
+  const cell=(txt,head=false)=>new D.TableCell({borders:{top:border,bottom:border,left:border,right:border},shading:head?{fill:blue,type:D.ShadingType.CLEAR}:undefined,margins:{top:90,bottom:90,left:100,right:100},children:[new D.Paragraph({children:[new D.TextRun({text:String(txt??""),bold:head,color:head?"FFFFFF":"1B1F24",size:head?18:17,font:"Arial"})]})]});
+  const table=(headers,rows)=>new D.Table({width:{size:100,type:D.WidthType.PERCENTAGE},rows:[new D.TableRow({tableHeader:true,children:headers.map(x=>cell(x,true))}),...rows.map(r=>new D.TableRow({children:r.map(x=>cell(x,false))}))]});
+  const children=[P("HASIL PERHITUNGAN MAN-DAY AUDIT",{bold:true,size:32,color:blue,after:80}),P(DOC_VERSION,{size:17,color:"667085"}),P("Waktu perhitungan: "+L.t,{size:17,color:"667085"}),P(" "),P("RINGKASAN",{bold:true,size:22,color:blue}),table(["Informasi","Keterangan"],[["Skema",lbl(L.s,L.v)],["Lingkup",L.v.lingkup||"-"],["Hasil perhitungan",L.r.md+" MD"]]),P(" "),P("PARAMETER PERHITUNGAN",{bold:true,size:22,color:blue}),table(["Parameter","Nilai"],fv(L.s,L.v).filter(r=>r[0]!=="Kelompok / skema")),P(" "),P("RINCIAN FORMULA DAN DASAR KETENTUAN",{bold:true,size:22,color:blue}),table(["Aturan","Klausul","Perhitungan","Sumber"],L.r.st.map(x=>[x.r,x.k,x.t,x.src])),P(" ")];
+  if(L.r.w.length){children.push(P("CATATAN VALIDASI",{bold:true,size:22,color:"B45309"}));L.r.w.forEach((x,i)=>children.push(P((i+1)+". "+x,{size:17})));}
+  else children.push(P("Validasi: tidak ada peringatan.",{bold:true,color:"1A7F4B",size:18}));
+  const doc=new D.Document({sections:[{properties:{page:{margin:{top:720,right:720,bottom:720,left:720}}},children}]});
+  await sv(nm(L.s,L.t)+".docx",await D.Packer.toBlob(doc));
+}
+function recapPdf(filter,label,filename){
+  const list=H.filter(h=>!filter||h.s===filter).slice().reverse(),d=pdfDoc(),blue=[31,78,140];
+  d.setFont("helvetica","bold");d.setFontSize(15);d.setTextColor(...blue);d.text("REKAP PERHITUNGAN MAN-DAY",40,42);
+  d.setFont("helvetica","normal");d.setFontSize(9);d.setTextColor(95);d.text(pf(label+" · "+DOC_VERSION),40,58);
+  const rows=list.map(h=>[h.w,lbl(h.s,h.v),h.v?.lingkup||"-",h.md+" MD"].map(pf));
+  d.autoTable({startY:75,head:[["Waktu","Skema","Lingkup","MD"]],body:rows.length?rows:[["-","-","Belum ada perhitungan","-"]],styles:{fontSize:8.5,cellPadding:5},headStyles:{fillColor:blue},columnStyles:{0:{cellWidth:105},1:{cellWidth:145},2:{cellWidth:185},3:{cellWidth:55}}});
+  return sv(filename,d.output("blob"));
+}
+
+$("fm").onchange=e=>{
+  if(e.target.id==="f_ms"){msT();return;}
+  if(e.target.id&&e.target.id.startsWith("f_std_")){
+    const state=read(),key=e.target.id.slice(6);SELS[key]=e.target.checked?1:0;state["std_"+key]=e.target.checked;form(state);
+  }
+};
+$("hit").onclick=calcNow;
+$("hs").onclick=e=>{const i=e.target.dataset.i;if(i!==undefined)restoreHistory(parseInt(i,10));};
+$("rp").onclick=()=>gd(()=>recapPdf(sk.value,SC[sk.value].n,"Rekap_"+SC[sk.value].n.replace(/[^\w]+/g,"_")+".pdf"));
+$("ra").onclick=()=>gd(()=>recapPdf(null,"Semua skema","Rekap_Semua_Skema.pdf"));
+$("cl").onclick=()=>{H=[];save();historyTable();};
+$("rs").onclick=()=>form();
+gp.onchange=()=>{fillSk();form();};sk.onchange=()=>form();
+Object.entries(GP).forEach(([key,group])=>gp.add(new Option(group[0],key)));
+gp.value="sms";
+H=H.filter(h=>SC[h.s]);fillSk();form();historyTable();
+</script></body></html>
